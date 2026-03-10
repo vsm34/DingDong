@@ -1,0 +1,36 @@
+# ─── Secrets — NEVER commit these ───────────────────────────────────────────
+.env
+.env.*
+!.env.example
+serviceAccount*.json
+*.key
+*secret*
+
+# ─── Firebase ────────────────────────────────────────────────────────────────
+google-services.json
+GoogleService-Info.plist
+
+# ─── Node / Cloud Functions ──────────────────────────────────────────────────
+node_modules/
+cloud/functions/node_modules/
+
+# ─── Flutter ─────────────────────────────────────────────────────────────────
+**/build/
+**/.dart_tool/
+**/.flutter-plugins
+**/.flutter-plugins-dependencies
+
+# ─── Android ─────────────────────────────────────────────────────────────────
+*.jks
+*.keystore
+local.properties
+
+# ─── OS ──────────────────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ─── IDE ─────────────────────────────────────────────────────────────────────
+.vscode/settings.json
+.idea/
+*.iml
