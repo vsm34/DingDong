@@ -34,3 +34,9 @@ desktop.ini
 .vscode/settings.json
 .idea/
 *.iml
+
+# ─── ESP-IDF ─────────────────────────────────────────────
+firmware/build/
+firmware/managed_components/
+firmware/sdkconfig
+firmware/.cache/
