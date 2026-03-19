@@ -1081,6 +1081,9 @@ Before running the Phase 4 firmware session prompt, you need:
    → idf.py set-target esp32s3
    → idf.py build (should compile after Phase 4 session)
 ```
+4. Initialize ESP-IDF before any firmware commands by running from repo root:
+   . .\esp-idf-init.ps1
+   Must be run once per PowerShell session before any idf.py commands.
 
 ## 14.5 Session Prompts
 
@@ -1450,6 +1453,7 @@ idf.py -p COM<N> flash monitor   # flash + open serial monitor
 ## 15.14 Session 4 Firmware Prompt
 
 ```
+Before any idf.py commands, run: . .\esp-idf-init.ps1 from repo root.
 Read docs/PRD.md fully — Section 15 is the complete firmware spec.
 Implement the full ESP-IDF v5.x firmware in C++ in firmware/.
 
