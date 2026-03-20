@@ -3,9 +3,13 @@ import '../core/theme/dd_colors.dart';
 import '../core/theme/dd_spacing.dart';
 import '../core/theme/dd_typography.dart';
 
-enum DDChipVariant { motion, doorbell, online, offline, unknown, info }
+enum DDChipVariant { motion, doorbell, online, offline, clipAvailable }
 
-/// DDChip — event-type badge and status chip
+/// DDChip — per PRD Section 5.6
+/// Motion:   background #DCFCE7, text #065F46
+/// Doorbell: background #FEF3C7, text #92400E
+/// Online:   background #DCFCE7, text #166534, with green dot 6px
+/// Offline:  background #FEE2E2, text #991B1B, with red dot 6px
 class DDChip extends StatelessWidget {
   final String label;
   final DDChipVariant variant;
@@ -32,71 +36,82 @@ class DDChip extends StatelessWidget {
       : label = 'Offline',
         variant = DDChipVariant.offline;
 
+  const DDChip.clipAvailable({super.key})
+      : label = 'Clip',
+        variant = DDChipVariant.clipAvailable;
+
   @override
   Widget build(BuildContext context) {
-    final colors = _resolveColors();
+    final (bg, fg, showDot, dotColor) = _resolve();
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: DDSpacing.sm,
         vertical: DDSpacing.xs,
       ),
       decoration: BoxDecoration(
-        color: colors.$1,
-        borderRadius: BorderRadius.circular(DDSpacing.radiusFull),
+        color: bg,
+        borderRadius: BorderRadius.circular(DDSpacing.radiusSm),
       ),
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 6,
-            height: 6,
-            decoration: BoxDecoration(
-              color: colors.$2,
-              shape: BoxShape.circle,
+          if (showDot) ...[
+            Container(
+              width: 6,
+              height: 6,
+              decoration: BoxDecoration(
+                color: dotColor,
+                shape: BoxShape.circle,
+              ),
             ),
-          ),
-          const SizedBox(width: DDSpacing.xs),
+            const SizedBox(width: DDSpacing.xs),
+          ],
           Text(
             label,
-            style: DDTypography.captionBold.copyWith(color: colors.$2),
+            style: DDTypography.label.copyWith(color: fg),
           ),
         ],
       ),
     );
   }
 
-  /// Returns (background, foreground) colors
-  (Color, Color) _resolveColors() {
+  /// Returns (bg, fg, showDot, dotColor)
+  (Color, Color, bool, Color) _resolve() {
     switch (variant) {
       case DDChipVariant.motion:
         return (
-          DDColors.warning.withValues(alpha: 0.12),
-          DDColors.warning,
+          const Color(0xFFDCFCE7),
+          DDColors.motionEventChip,
+          false,
+          Colors.transparent,
         );
       case DDChipVariant.doorbell:
         return (
-          DDColors.electricBlue.withValues(alpha: 0.12),
-          DDColors.electricBlue,
+          const Color(0xFFFEF3C7),
+          DDColors.doorbellEventChip,
+          false,
+          Colors.transparent,
         );
       case DDChipVariant.online:
         return (
-          DDColors.online.withValues(alpha: 0.12),
+          const Color(0xFFDCFCE7),
+          DDColors.online,
+          true,
           DDColors.online,
         );
       case DDChipVariant.offline:
         return (
-          DDColors.offline.withValues(alpha: 0.12),
-          DDColors.offline,
+          const Color(0xFFFEE2E2),
+          const Color(0xFF991B1B),
+          true,
+          DDColors.error,
         );
-      case DDChipVariant.unknown:
+      case DDChipVariant.clipAvailable:
         return (
-          DDColors.unknown.withValues(alpha: 0.12),
-          DDColors.unknown,
-        );
-      case DDChipVariant.info:
-        return (
-          DDColors.info.withValues(alpha: 0.12),
-          DDColors.info,
+          DDColors.clipAvailable,
+          DDColors.clipText,
+          false,
+          Colors.transparent,
         );
     }
   }

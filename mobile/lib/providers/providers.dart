@@ -1,8 +1,11 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_messaging/firebase_messaging.dart';
 import '../repositories/device_api/device_api.dart';
 import '../repositories/device_api/mock_device_api.dart';
 import '../repositories/events/events_repo.dart';
-import '../repositories/events/mock_events_repo.dart';
+import '../repositories/events/firestore_events_repo.dart';
 import '../models/event_model.dart';
 import '../models/clip_model.dart';
 import '../models/device_model.dart';
@@ -12,7 +15,7 @@ import '../models/device_settings_model.dart';
 
 final deviceApiProvider = Provider<DeviceApi>((ref) => MockDeviceApi());
 
-final eventsRepoProvider = Provider<EventsRepo>((ref) => MockEventsRepo());
+final eventsRepoProvider = Provider<EventsRepo>((ref) => FirestoreEventsRepo());
 
 // ─── Auth ─────────────────────────────────────────────────────────────────────
 
@@ -41,43 +44,99 @@ class AuthState {
 class AuthNotifier extends Notifier<AuthState> {
   @override
   AuthState build() {
-    // Phase 1: start as logged in with mock user
-    return const AuthState(
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+
+    // Keep state in sync with Firebase auth changes
+    final sub = FirebaseAuth.instance.authStateChanges().listen((user) {
+      if (user != null) {
+        state = AuthState(
+          user: AuthUser(
+            uid: user.uid,
+            email: user.email ?? '',
+            displayName: user.displayName ?? '',
+          ),
+        );
+      } else {
+        state = const AuthState();
+      }
+    });
+    ref.onDispose(sub.cancel);
+
+    if (firebaseUser == null) return const AuthState();
+    return AuthState(
       user: AuthUser(
-        uid: 'mock-uid-001',
-        email: 'test@dingdong.com',
-        displayName: 'Demo User',
+        uid: firebaseUser.uid,
+        email: firebaseUser.email ?? '',
+        displayName: firebaseUser.displayName ?? '',
       ),
     );
   }
 
   Future<void> signIn(String email, String password) async {
     state = const AuthState(isLoading: true);
-    await Future.delayed(const Duration(milliseconds: 800));
-    state = AuthState(
-      user: AuthUser(
-        uid: 'mock-uid-001',
-        email: email,
-        displayName: email.split('@').first,
-      ),
-    );
+    try {
+      final credential = await FirebaseAuth.instance
+          .signInWithEmailAndPassword(email: email, password: password);
+      await _registerFcmToken(credential.user!.uid);
+    } on FirebaseAuthException catch (e) {
+      state = AuthState(error: e.message);
+    }
   }
 
   Future<void> signUp(
       String email, String password, String displayName) async {
     state = const AuthState(isLoading: true);
-    await Future.delayed(const Duration(milliseconds: 900));
-    state = AuthState(
-      user: AuthUser(
-        uid: 'mock-uid-${DateTime.now().millisecondsSinceEpoch}',
-        email: email,
-        displayName: displayName,
-      ),
-    );
+    try {
+      final credential = await FirebaseAuth.instance
+          .createUserWithEmailAndPassword(email: email, password: password);
+      await credential.user!.updateDisplayName(displayName);
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(credential.user!.uid)
+          .set({
+        'email': email,
+        'displayName': displayName,
+        'createdAt': FieldValue.serverTimestamp(),
+        'fcmTokens': <String>[],
+      });
+      await _registerFcmToken(credential.user!.uid);
+    } on FirebaseAuthException catch (e) {
+      state = AuthState(error: e.message);
+    }
   }
 
-  void signOut() {
-    state = const AuthState();
+  Future<void> signOut() async {
+    final user = FirebaseAuth.instance.currentUser;
+    if (user != null) await _unregisterFcmToken(user.uid);
+    await FirebaseAuth.instance.signOut();
+  }
+
+  Future<void> _registerFcmToken(String uid) async {
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await FirebaseFirestore.instance.collection('users').doc(uid).set(
+          {'fcmTokens': FieldValue.arrayUnion([token])},
+          SetOptions(merge: true),
+        );
+      }
+    } catch (_) {
+      // Non-fatal — sign-in succeeds even if FCM token registration fails
+    }
+  }
+
+  Future<void> _unregisterFcmToken(String uid) async {
+    try {
+      final token = await FirebaseMessaging.instance.getToken();
+      if (token != null) {
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(uid)
+            .update({'fcmTokens': FieldValue.arrayRemove([token])});
+      }
+    } catch (_) {
+      // Non-fatal
+    }
   }
 }
 

@@ -1,15 +1,19 @@
 import 'package:flutter/material.dart';
 import '../core/theme/dd_colors.dart';
 import '../core/theme/dd_spacing.dart';
-import '../core/theme/dd_typography.dart';
 
-/// DDCard variants — event card, clip card, device status card
+/// DDCard — per PRD Section 5.6
+/// background: #FFFFFF, border: 0.5px #E0E0DC, radius: md (8px)
+/// padding: 16px, shadow: 0 1px 3px rgba(0,0,0,0.06)
+/// Motion event card: background #F4F6F1
+/// Doorbell event card: background #FFFBEB
 class DDCard extends StatelessWidget {
   final Widget child;
   final EdgeInsetsGeometry? padding;
   final VoidCallback? onTap;
   final Color? backgroundColor;
   final double? borderRadius;
+  final bool hasShadow;
 
   const DDCard({
     super.key,
@@ -18,17 +22,49 @@ class DDCard extends StatelessWidget {
     this.onTap,
     this.backgroundColor,
     this.borderRadius,
+    this.hasShadow = true,
   });
+
+  const DDCard.motion({
+    super.key,
+    required this.child,
+    this.padding,
+    this.onTap,
+    this.borderRadius,
+    this.hasShadow = true,
+  }) : backgroundColor = DDColors.motionEventBg;
+
+  const DDCard.doorbell({
+    super.key,
+    required this.child,
+    this.padding,
+    this.onTap,
+    this.borderRadius,
+    this.hasShadow = true,
+  }) : backgroundColor = DDColors.doorbellEventBg;
 
   @override
   Widget build(BuildContext context) {
-    final radius = borderRadius ?? DDSpacing.radiusLg;
+    final radius = borderRadius ?? DDSpacing.radiusMd;
+    final bg = backgroundColor ?? DDColors.white;
+
+    final decoration = BoxDecoration(
+      color: bg,
+      borderRadius: BorderRadius.circular(radius),
+      border: Border.all(color: DDColors.borderDefault, width: 0.5),
+      boxShadow: hasShadow
+          ? [
+              BoxShadow(
+                color: Colors.black.withValues(alpha: 0.06),
+                blurRadius: 3,
+                offset: const Offset(0, 1),
+              ),
+            ]
+          : null,
+    );
+
     final content = Container(
-      decoration: BoxDecoration(
-        color: backgroundColor ?? DDColors.white,
-        borderRadius: BorderRadius.circular(radius),
-        border: Border.all(color: DDColors.divider),
-      ),
+      decoration: decoration,
       child: Padding(
         padding: padding ?? const EdgeInsets.all(DDSpacing.cardPadding),
         child: child,
@@ -46,134 +82,5 @@ class DDCard extends StatelessWidget {
       );
     }
     return content;
-  }
-}
-
-/// DDEventCard — used in events feed
-class DDEventCard extends StatelessWidget {
-  final String title;
-  final String subtitle;
-  final Widget leading;
-  final Widget? trailing;
-  final VoidCallback? onTap;
-
-  const DDEventCard({
-    super.key,
-    required this.title,
-    required this.subtitle,
-    required this.leading,
-    this.trailing,
-    this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return DDCard(
-      onTap: onTap,
-      padding: const EdgeInsets.symmetric(
-        horizontal: DDSpacing.md,
-        vertical: DDSpacing.md,
-      ),
-      child: Row(
-        children: [
-          leading,
-          const SizedBox(width: DDSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(title, style: DDTypography.labelLg),
-                const SizedBox(height: DDSpacing.xs),
-                Text(subtitle, style: DDTypography.bodySm),
-              ],
-            ),
-          ),
-          if (trailing != null) ...[
-            const SizedBox(width: DDSpacing.sm),
-            trailing!,
-          ],
-        ],
-      ),
-    );
-  }
-}
-
-/// DDStatusCard — device online/offline status card
-class DDStatusCard extends StatelessWidget {
-  final String deviceName;
-  final bool isOnline;
-  final String lastSeen;
-  final VoidCallback? onLiveView;
-
-  const DDStatusCard({
-    super.key,
-    required this.deviceName,
-    required this.isOnline,
-    required this.lastSeen,
-    this.onLiveView,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return DDCard(
-      backgroundColor: DDColors.navyPrimary,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
-            children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      deviceName,
-                      style: DDTypography.h2
-                          .copyWith(color: DDColors.textOnDark),
-                    ),
-                    const SizedBox(height: DDSpacing.xs),
-                    Row(
-                      children: [
-                        Container(
-                          width: 8,
-                          height: 8,
-                          decoration: BoxDecoration(
-                            color:
-                                isOnline ? DDColors.online : DDColors.offline,
-                            shape: BoxShape.circle,
-                          ),
-                        ),
-                        const SizedBox(width: DDSpacing.xs),
-                        Text(
-                          isOnline ? 'Online' : 'Offline — $lastSeen',
-                          style: DDTypography.bodySm
-                              .copyWith(color: DDColors.textOnDarkSecondary),
-                        ),
-                      ],
-                    ),
-                  ],
-                ),
-              ),
-              const Icon(Icons.videocam_outlined,
-                  color: DDColors.textOnDarkSecondary, size: 28),
-            ],
-          ),
-          if (onLiveView != null) ...[
-            const SizedBox(height: DDSpacing.md),
-            TextButton.icon(
-              onPressed: isOnline ? onLiveView : null,
-              icon: const Icon(Icons.play_circle_outline, size: 18),
-              label: const Text('Live View'),
-              style: TextButton.styleFrom(
-                foregroundColor: isOnline
-                    ? DDColors.electricBlueLight
-                    : DDColors.textOnDarkSecondary,
-                padding: EdgeInsets.zero,
-              ),
-            ),
-          ],
-        ],
-      ),
-    );
   }
 }

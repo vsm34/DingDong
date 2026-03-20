@@ -3,7 +3,11 @@ import '../core/theme/dd_colors.dart';
 import '../core/theme/dd_spacing.dart';
 import '../core/theme/dd_typography.dart';
 
-/// DDTextField — styled text input with validation states
+/// DDTextField — per PRD Section 5.6
+/// background: #F4F6F1, border: 1px #E0E0DC, radius: md (8px)
+/// padding: 14px horizontal, 12px vertical
+/// focus border: #355E3B, focus shadow: 0 0 0 3px rgba(53,94,59,0.15)
+/// error border: #DC2626
 class DDTextField extends StatefulWidget {
   final String label;
   final String? hint;
@@ -21,6 +25,7 @@ class DDTextField extends StatefulWidget {
   final void Function(String)? onSubmitted;
   final FocusNode? focusNode;
   final bool autofocus;
+  final String? initialValue;
 
   const DDTextField({
     super.key,
@@ -40,6 +45,7 @@ class DDTextField extends StatefulWidget {
     this.onSubmitted,
     this.focusNode,
     this.autofocus = false,
+    this.initialValue,
   });
 
   @override
@@ -55,6 +61,7 @@ class _DDTextFieldState extends State<DDTextField> {
 
     return TextFormField(
       controller: widget.controller,
+      initialValue: widget.initialValue,
       validator: widget.validator,
       keyboardType: widget.keyboardType,
       obscureText: isPassword && _obscure,
@@ -66,7 +73,7 @@ class _DDTextFieldState extends State<DDTextField> {
       onFieldSubmitted: widget.onSubmitted,
       focusNode: widget.focusNode,
       autofocus: widget.autofocus,
-      style: DDTypography.bodyLg,
+      style: DDTypography.bodyL.copyWith(color: DDColors.textPrimary),
       decoration: InputDecoration(
         labelText: widget.label,
         hintText: widget.hint,
@@ -79,8 +86,10 @@ class _DDTextFieldState extends State<DDTextField> {
         suffixIcon: isPassword
             ? IconButton(
                 icon: Icon(
-                  _obscure ? Icons.visibility_outlined : Icons.visibility_off_outlined,
-                  color: DDColors.textSecondary,
+                  _obscure
+                      ? Icons.visibility_outlined
+                      : Icons.visibility_off_outlined,
+                  color: DDColors.textMuted,
                   size: DDSpacing.iconSize,
                 ),
                 onPressed: () => setState(() => _obscure = !_obscure),
@@ -93,6 +102,10 @@ class _DDTextFieldState extends State<DDTextField> {
                   )
                 : null,
         counterText: '',
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 14,
+          vertical: 12,
+        ),
       ),
     );
   }

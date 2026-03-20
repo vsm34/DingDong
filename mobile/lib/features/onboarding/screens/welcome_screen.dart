@@ -4,84 +4,107 @@ import '../../../core/theme/dd_colors.dart';
 import '../../../core/theme/dd_spacing.dart';
 import '../../../core/theme/dd_typography.dart';
 import '../../../components/dd_button.dart';
+import '../../../components/dd_logo.dart';
 import '../../../navigation/app_router.dart';
 
+/// /onboard/welcome — Step 1/5
+/// Top half: hunter green hero block (50% height). Logo icon, "DingDong" display, caption.
+/// Bottom half: white. H2, Body M, DDButton "Get Started", step dots.
 class WelcomeScreen extends StatelessWidget {
   const WelcomeScreen({super.key});
 
   @override
   Widget build(BuildContext context) {
+    final screenHeight = MediaQuery.of(context).size.height;
     return Scaffold(
-      backgroundColor: DDColors.navyPrimary,
+      backgroundColor: DDColors.white,
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.all(DDSpacing.pagePadding),
-          child: Column(
-            children: [
-              const Spacer(),
-              Container(
-                width: 100,
-                height: 100,
-                decoration: BoxDecoration(
-                  color: DDColors.electricBlue,
-                  borderRadius: BorderRadius.circular(DDSpacing.radiusXl),
+        child: Column(
+          children: [
+            // Hero — top ~45%
+            SizedBox(
+              height: screenHeight * 0.45,
+              width: double.infinity,
+              child: Container(
+                color: DDColors.hunterGreen,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    const DDLogo.icon(),
+                    const SizedBox(height: DDSpacing.md),
+                    Text(
+                      'DingDong',
+                      style: DDTypography.display.copyWith(color: DDColors.white),
+                    ),
+                    const SizedBox(height: DDSpacing.sm),
+                    Text(
+                      'Smart Doorbell System',
+                      style: DDTypography.caption.copyWith(
+                        color: const Color(0xFFA7D4A7),
+                        letterSpacing: 0.2,
+                      ),
+                    ),
+                  ],
                 ),
-                child: const Icon(Icons.doorbell_outlined,
-                    color: DDColors.white, size: 56),
               ),
-              const SizedBox(height: DDSpacing.xl),
-              Text(
-                'Set Up Your\nDingDong',
-                style: DDTypography.display
-                    .copyWith(color: DDColors.white),
-                textAlign: TextAlign.center,
+            ),
+            // Bottom — white
+            Expanded(
+              child: Padding(
+                padding: const EdgeInsets.fromLTRB(
+                    DDSpacing.xl, DDSpacing.lg, DDSpacing.xl, DDSpacing.md),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const SizedBox(height: DDSpacing.md),
+                    Text('Meet DingDong', style: DDTypography.h2),
+                    const SizedBox(height: DDSpacing.sm),
+                    Text(
+                      'Privacy-first doorbell with local storage and smart alerts.',
+                      style: DDTypography.bodyM.copyWith(color: DDColors.textSecondary),
+                    ),
+                    const Spacer(),
+                    DDButton.primary(
+                      label: 'Get Started',
+                      onPressed: () => context.go(Routes.onboardConnectAp),
+                    ),
+                    const SizedBox(height: DDSpacing.lg),
+                    const _StepDots(total: 5, current: 0),
+                    const SizedBox(height: DDSpacing.md),
+                  ],
+                ),
               ),
-              const SizedBox(height: DDSpacing.md),
-              Text(
-                'Let\'s connect your smart doorbell\nto your home Wi-Fi in just a few steps.',
-                style: DDTypography.bodyLg
-                    .copyWith(color: DDColors.textOnDarkSecondary),
-                textAlign: TextAlign.center,
-              ),
-              const Spacer(),
-              const _StepIndicator(steps: 5, current: 0),
-              const SizedBox(height: DDSpacing.xl),
-              DDButton.primary(
-                label: 'Get Started',
-                onPressed: () => context.go(Routes.onboardConnectAp),
-              ),
-              const SizedBox(height: DDSpacing.md),
-              DDButton.ghost(
-                label: 'I already have an account',
-                onPressed: () => context.go(Routes.login),
-              ),
-            ],
-          ),
+            ),
+          ],
         ),
       ),
     );
   }
 }
 
-class _StepIndicator extends StatelessWidget {
-  final int steps;
+class _StepDots extends StatelessWidget {
+  final int total;
   final int current;
 
-  const _StepIndicator({required this.steps, required this.current});
+  const _StepDots({required this.total, required this.current});
 
   @override
   Widget build(BuildContext context) {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
-      children: List.generate(steps, (i) {
+      children: List.generate(total, (i) {
         final active = i == current;
-        return Container(
-          margin: const EdgeInsets.symmetric(horizontal: DDSpacing.xs),
-          width: active ? 24 : 8,
+        return AnimatedContainer(
+          duration: const Duration(milliseconds: 200),
+          margin: const EdgeInsets.symmetric(horizontal: 4),
+          width: active ? 20 : 8,
           height: 8,
           decoration: BoxDecoration(
-            color:
-                active ? DDColors.electricBlue : DDColors.white.withValues(alpha: 0.3),
+            color: active ? DDColors.hunterGreen : Colors.transparent,
+            border: Border.all(
+              color: active ? DDColors.hunterGreen : DDColors.borderDefault,
+              width: 1.5,
+            ),
             borderRadius: BorderRadius.circular(DDSpacing.radiusFull),
           ),
         );

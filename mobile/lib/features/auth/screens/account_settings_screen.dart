@@ -4,12 +4,15 @@ import 'package:go_router/go_router.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../core/theme/dd_spacing.dart';
 import '../../../core/theme/dd_typography.dart';
+import '../../../components/dd_bottom_sheet.dart';
 import '../../../components/dd_button.dart';
-import '../../../components/dd_card.dart';
-import '../../../components/dd_toast.dart';
+import '../../../components/dd_text_field.dart';
 import '../../../navigation/app_router.dart';
 import '../../../providers/providers.dart';
 
+/// /settings/account — Account settings.
+/// Display name (tappable, edit DDBottomSheet), email (read-only).
+/// "Sign Out" destructive button. "App version 1.0.0" caption at bottom.
 class AccountSettingsScreen extends ConsumerWidget {
   const AccountSettingsScreen({super.key});
 
@@ -19,96 +22,128 @@ class AccountSettingsScreen extends ConsumerWidget {
     final user = auth.user;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Account')),
-      backgroundColor: DDColors.surface,
-      body: SafeArea(
-        child: ListView(
-          padding: const EdgeInsets.all(DDSpacing.pagePadding),
-          children: [
-            // Profile card
-            DDCard(
+      backgroundColor: DDColors.white,
+      appBar: AppBar(
+        backgroundColor: DDColors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        title: Text('Account', style: DDTypography.h3),
+      ),
+      body: ListView(
+        children: [
+          // Display name row — tappable
+          InkWell(
+            onTap: () =>
+                _editDisplayName(context, ref, user?.displayName ?? ''),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: DDSpacing.xl,
+                vertical: DDSpacing.md,
+              ),
               child: Row(
                 children: [
-                  CircleAvatar(
-                    radius: 28,
-                    backgroundColor: DDColors.electricBlue,
-                    child: Text(
-                      (user?.displayName ?? 'U')[0].toUpperCase(),
-                      style: DDTypography.h2
-                          .copyWith(color: DDColors.white),
-                    ),
-                  ),
-                  const SizedBox(width: DDSpacing.md),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(user?.displayName ?? '—',
-                            style: DDTypography.h3),
-                        const SizedBox(height: DDSpacing.xs),
-                        Text(user?.email ?? '—',
-                            style: DDTypography.bodySm),
+                        Text(
+                          'Display Name',
+                          style: DDTypography.caption
+                              .copyWith(color: DDColors.textMuted),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          user?.displayName ?? '—',
+                          style: DDTypography.bodyM,
+                        ),
                       ],
                     ),
+                  ),
+                  const Icon(
+                    Icons.chevron_right,
+                    size: 20,
+                    color: DDColors.textMuted,
                   ),
                 ],
               ),
             ),
-            const SizedBox(height: DDSpacing.xl),
-            DDCard(
-              padding: EdgeInsets.zero,
-              child: Column(
-                children: [
-                  _InfoRow(
-                      label: 'Display Name',
-                      value: user?.displayName ?? '—'),
-                  const Divider(height: 1, indent: DDSpacing.md),
-                  _InfoRow(label: 'Email', value: user?.email ?? '—'),
-                  const Divider(height: 1, indent: DDSpacing.md),
-                  _InfoRow(label: 'User ID', value: user?.uid ?? '—'),
-                ],
-              ),
+          ),
+          const Divider(
+            height: 0.5,
+            thickness: 0.5,
+            color: DDColors.borderDefault,
+          ),
+          // Email row — read-only
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: DDSpacing.xl,
+              vertical: DDSpacing.md,
             ),
-            const SizedBox(height: DDSpacing.xl),
-            DDButton.destructive(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  'Email',
+                  style:
+                      DDTypography.caption.copyWith(color: DDColors.textMuted),
+                ),
+                const SizedBox(height: 2),
+                Text(user?.email ?? '—', style: DDTypography.bodyM),
+              ],
+            ),
+          ),
+          const Divider(
+            height: 0.5,
+            thickness: 0.5,
+            color: DDColors.borderDefault,
+          ),
+          const SizedBox(height: DDSpacing.xl),
+          Padding(
+            padding:
+                const EdgeInsets.symmetric(horizontal: DDSpacing.xl),
+            child: DDButton.destructive(
               label: 'Sign Out',
               onPressed: () {
                 ref.read(authProvider.notifier).signOut();
                 context.go(Routes.login);
-                DDToast.info(context, 'Signed out');
               },
             ),
-          ],
-        ),
+          ),
+          const SizedBox(height: DDSpacing.xxl),
+          Center(
+            child: Text(
+              'App version 1.0.0',
+              style: DDTypography.caption.copyWith(color: DDColors.textMuted),
+            ),
+          ),
+          const SizedBox(height: DDSpacing.lg),
+        ],
       ),
     );
   }
-}
 
-class _InfoRow extends StatelessWidget {
-  final String label;
-  final String value;
-
-  const _InfoRow({required this.label, required this.value});
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(
-        horizontal: DDSpacing.md,
-        vertical: DDSpacing.md,
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+  void _editDisplayName(
+      BuildContext context, WidgetRef ref, String current) {
+    final ctrl = TextEditingController(text: current);
+    DDBottomSheet.show(
+      context: context,
+      title: 'Edit Display Name',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Text(label,
-              style:
-                  DDTypography.body.copyWith(color: DDColors.textSecondary)),
-          Flexible(
-            child: Text(value,
-                style: DDTypography.body,
-                textAlign: TextAlign.end,
-                overflow: TextOverflow.ellipsis),
+          DDTextField(
+            label: 'Display Name',
+            controller: ctrl,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+          ),
+          const SizedBox(height: DDSpacing.lg),
+          DDButton.primary(
+            label: 'Save',
+            onPressed: () {
+              // Phase 2B: persist to Firestore
+              Navigator.of(context).pop();
+            },
           ),
         ],
       ),

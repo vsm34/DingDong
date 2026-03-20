@@ -3,35 +3,59 @@ import '../core/theme/dd_colors.dart';
 import '../core/theme/dd_spacing.dart';
 import '../core/theme/dd_typography.dart';
 
-/// DDLoadingIndicator — branded loading spinner
+enum DDLoadingSize { sm, md, lg }
+
+/// DDLoadingIndicator — per PRD Section 5.6
+/// Circular progress, color: #355E3B, strokeWidth: 2.5px
+/// Sizes: sm 16px, md 24px, lg 40px
+/// Full-screen loading: centered md indicator on white background with 300ms delay before showing
 class DDLoadingIndicator extends StatelessWidget {
+  final DDLoadingSize size;
   final String? message;
   final bool centerInScreen;
 
   const DDLoadingIndicator({
     super.key,
+    this.size = DDLoadingSize.md,
     this.message,
     this.centerInScreen = false,
   });
 
+  /// Convenience constructors matching legacy API
+  const DDLoadingIndicator.sm({super.key, this.message})
+      : size = DDLoadingSize.sm,
+        centerInScreen = false;
+
+  const DDLoadingIndicator.lg({super.key, this.message})
+      : size = DDLoadingSize.lg,
+        centerInScreen = false;
+
+  static double _dimension(DDLoadingSize s) => switch (s) {
+        DDLoadingSize.sm => 16.0,
+        DDLoadingSize.md => 24.0,
+        DDLoadingSize.lg => 40.0,
+      };
+
   @override
   Widget build(BuildContext context) {
-    final content = Column(
+    final dim = _dimension(size);
+
+    final indicator = Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(
-          width: 40,
-          height: 40,
-          child: CircularProgressIndicator(
-            strokeWidth: 3,
-            color: DDColors.electricBlue,
+        SizedBox(
+          width: dim,
+          height: dim,
+          child: const CircularProgressIndicator(
+            color: DDColors.hunterGreen,
+            strokeWidth: 2.5,
           ),
         ),
         if (message != null) ...[
           const SizedBox(height: DDSpacing.md),
           Text(
             message!,
-            style: DDTypography.body.copyWith(color: DDColors.textSecondary),
+            style: DDTypography.bodyM.copyWith(color: DDColors.textMuted),
             textAlign: TextAlign.center,
           ),
         ],
@@ -39,31 +63,43 @@ class DDLoadingIndicator extends StatelessWidget {
     );
 
     if (centerInScreen) {
-      return Center(child: content);
+      return Scaffold(
+        backgroundColor: DDColors.white,
+        body: Center(child: indicator),
+      );
     }
-    return content;
+    return indicator;
   }
 }
 
-/// Full-screen loading overlay
-class DDLoadingOverlay extends StatelessWidget {
+/// Full-screen loading with 300ms delay to prevent flash
+class DDDelayedLoader extends StatefulWidget {
   final String? message;
 
-  const DDLoadingOverlay({super.key, this.message});
+  const DDDelayedLoader({super.key, this.message});
+
+  @override
+  State<DDDelayedLoader> createState() => _DDDelayedLoaderState();
+}
+
+class _DDDelayedLoaderState extends State<DDDelayedLoader> {
+  bool _visible = false;
+
+  @override
+  void initState() {
+    super.initState();
+    Future.delayed(const Duration(milliseconds: 300), () {
+      if (mounted) setState(() => _visible = true);
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      color: DDColors.scrim,
-      child: Center(
-        child: Container(
-          padding: const EdgeInsets.all(DDSpacing.xl),
-          decoration: BoxDecoration(
-            color: DDColors.white,
-            borderRadius: BorderRadius.circular(DDSpacing.radiusLg),
-          ),
-          child: DDLoadingIndicator(message: message),
-        ),
+    if (!_visible) return const SizedBox.shrink();
+    return Center(
+      child: DDLoadingIndicator(
+        size: DDLoadingSize.md,
+        message: widget.message,
       ),
     );
   }
@@ -87,8 +123,8 @@ class _DDShimmerTileState extends State<DDShimmerTile>
     super.initState();
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
+      duration: const Duration(milliseconds: 1400),
+    )..repeat(reverse: true);
     _animation = CurvedAnimation(parent: _controller, curve: Curves.easeInOut);
   }
 
@@ -103,22 +139,52 @@ class _DDShimmerTileState extends State<DDShimmerTile>
     return AnimatedBuilder(
       animation: _animation,
       builder: (_, __) {
+        final shimmer = Color.lerp(
+          const Color(0xFFEEF0EC),
+          const Color(0xFFF8F9F7),
+          _animation.value,
+        )!;
         return Padding(
           padding: const EdgeInsets.symmetric(
-            horizontal: DDSpacing.listTilePaddingH,
-            vertical: DDSpacing.listTilePaddingV,
+            horizontal: DDSpacing.md,
+            vertical: DDSpacing.sm,
           ),
           child: Row(
             children: [
-              _shimmerBox(40, 40, DDSpacing.radiusMd),
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: shimmer,
+                  borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
+                ),
+              ),
               const SizedBox(width: DDSpacing.md),
               Expanded(
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    _shimmerLine(0.6),
+                    FractionallySizedBox(
+                      widthFactor: 0.6,
+                      child: Container(
+                        height: 14,
+                        decoration: BoxDecoration(
+                          color: shimmer,
+                          borderRadius: BorderRadius.circular(DDSpacing.radiusSm),
+                        ),
+                      ),
+                    ),
                     const SizedBox(height: DDSpacing.xs),
-                    _shimmerLine(0.4),
+                    FractionallySizedBox(
+                      widthFactor: 0.4,
+                      child: Container(
+                        height: 12,
+                        decoration: BoxDecoration(
+                          color: shimmer,
+                          borderRadius: BorderRadius.circular(DDSpacing.radiusSm),
+                        ),
+                      ),
+                    ),
                   ],
                 ),
               ),
@@ -126,30 +192,6 @@ class _DDShimmerTileState extends State<DDShimmerTile>
           ),
         );
       },
-    );
-  }
-
-  Widget _shimmerLine(double widthFactor) {
-    return FractionallySizedBox(
-      widthFactor: widthFactor,
-      child: Container(
-        height: 12,
-        decoration: BoxDecoration(
-          color: DDColors.shimmerBase,
-          borderRadius: BorderRadius.circular(DDSpacing.radiusXs),
-        ),
-      ),
-    );
-  }
-
-  Widget _shimmerBox(double w, double h, double radius) {
-    return Container(
-      width: w,
-      height: h,
-      decoration: BoxDecoration(
-        color: DDColors.shimmerBase,
-        borderRadius: BorderRadius.circular(radius),
-      ),
     );
   }
 }

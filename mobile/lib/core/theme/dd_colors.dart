@@ -1,42 +1,34 @@
 import 'package:flutter/material.dart';
 
-/// DingDong brand color palette
+/// DingDong brand color palette — hunter green + amber, no blue anywhere
 abstract final class DDColors {
-  // Primary brand
-  static const Color navyPrimary = Color(0xFF1A3C5E);
-  static const Color navyDark = Color(0xFF0F2438);
-  static const Color navyLight = Color(0xFF2A4F75);
-
-  // Accent
-  static const Color electricBlue = Color(0xFF2E86C1);
-  static const Color electricBlueLight = Color(0xFF5BAAD6);
-
-  // Neutrals
+  // ── Primary brand ─────────────────────────────────────────────────────────
+  static const Color hunterGreen = Color(0xFF355E3B);
+  static const Color hunterGreenDark = Color(0xFF2A4D2F);
+  static const Color amber = Color(0xFFF59E0B);
   static const Color white = Color(0xFFFFFFFF);
-  static const Color surface = Color(0xFFF5F7FA);
-  static const Color surfaceVariant = Color(0xFFEAEEF2);
-  static const Color divider = Color(0xFFDDE5ED);
+  static const Color softGreenGray = Color(0xFFF4F6F1);
 
-  // Text
-  static const Color textPrimary = Color(0xFF0F1E2E);
-  static const Color textSecondary = Color(0xFF4A6280);
-  static const Color textDisabled = Color(0xFF9DB0C4);
-  static const Color textOnDark = Color(0xFFFFFFFF);
-  static const Color textOnDarkSecondary = Color(0xFFB8CCE0);
+  // ── Text ──────────────────────────────────────────────────────────────────
+  static const Color textPrimary = Color(0xFF1A2E1A);
+  static const Color textSecondary = Color(0xFF4B6B4B);
+  static const Color textMuted = Color(0xFF6B7280);
+  static const Color textDisabled = Color(0xFF9CA3AF);
 
-  // Semantic
-  static const Color success = Color(0xFF27AE60);
-  static const Color error = Color(0xFFE74C3C);
-  static const Color warning = Color(0xFFF39C12);
-  static const Color info = Color(0xFF2E86C1);
+  // ── Semantic ──────────────────────────────────────────────────────────────
+  static const Color online = Color(0xFF166534);
+  static const Color error = Color(0xFFDC2626);
+  static const Color warning = Color(0xFFD97706);
 
-  // Status
-  static const Color online = Color(0xFF27AE60);
-  static const Color offline = Color(0xFFE74C3C);
-  static const Color unknown = Color(0xFF9DB0C4);
+  // ── Event surfaces ────────────────────────────────────────────────────────
+  static const Color doorbellEventBg = Color(0xFFFFFBEB);
+  static const Color doorbellEventChip = Color(0xFF92400E);
+  static const Color motionEventBg = Color(0xFFF4F6F1);
+  static const Color motionEventChip = Color(0xFF1C4532);
+  static const Color clipAvailable = Color(0xFFD1FAE5);
+  static const Color clipText = Color(0xFF065F46);
 
-  // Overlays
-  static const Color scrim = Color(0x80000000);
-  static const Color shimmerBase = Color(0xFFEAEEF2);
-  static const Color shimmerHighlight = Color(0xFFF5F7FA);
+  // ── Borders ───────────────────────────────────────────────────────────────
+  static const Color borderDefault = Color(0xFFE0E0DC);
+  static const Color borderStrong = Color(0xFFC8D8C8);
 }

@@ -3,7 +3,12 @@ import '../core/theme/dd_colors.dart';
 import '../core/theme/dd_spacing.dart';
 import '../core/theme/dd_typography.dart';
 
-/// DDListTile — styled list item for events feed and clip list
+/// DDListTile — per PRD Section 5.6
+/// height: 64px minimum, padding: 12px horizontal
+/// Leading icon area: 40x40px, radius sm, colored bg per event type
+/// Title: Body M, #1A2E1A, font-weight 600
+/// Subtitle: Caption, #6B7280
+/// Separator: 0.5px #E0E0DC, inset 16px left
 class DDListTile extends StatelessWidget {
   final String title;
   final String? subtitle;
@@ -31,50 +36,65 @@ class DDListTile extends StatelessWidget {
       children: [
         InkWell(
           onTap: onTap,
-          child: Padding(
-            padding: contentPadding ??
-                const EdgeInsets.symmetric(
-                  horizontal: DDSpacing.listTilePaddingH,
-                  vertical: DDSpacing.listTilePaddingV,
-                ),
-            child: Row(
-              children: [
-                if (leading != null) ...[
-                  leading!,
-                  const SizedBox(width: DDSpacing.md),
-                ],
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(title, style: DDTypography.body),
-                      if (subtitle != null) ...[
-                        const SizedBox(height: DDSpacing.xs / 2),
-                        Text(subtitle!, style: DDTypography.caption),
-                      ],
-                    ],
+          child: ConstrainedBox(
+            constraints: const BoxConstraints(minHeight: 64),
+            child: Padding(
+              padding: contentPadding ??
+                  const EdgeInsets.symmetric(
+                    horizontal: DDSpacing.listTilePaddingH,
+                    vertical: DDSpacing.listTilePaddingV,
                   ),
-                ),
-                if (trailing != null) ...[
-                  const SizedBox(width: DDSpacing.sm),
-                  trailing!,
+              child: Row(
+                children: [
+                  if (leading != null) ...[
+                    leading!,
+                    const SizedBox(width: DDSpacing.md),
+                  ],
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Text(
+                          title,
+                          style: DDTypography.bodyM.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: DDColors.textPrimary,
+                          ),
+                        ),
+                        if (subtitle != null) ...[
+                          const SizedBox(height: 2),
+                          Text(
+                            subtitle!,
+                            style: DDTypography.caption,
+                          ),
+                        ],
+                      ],
+                    ),
+                  ),
+                  if (trailing != null) ...[
+                    const SizedBox(width: DDSpacing.sm),
+                    trailing!,
+                  ],
                 ],
-              ],
+              ),
             ),
           ),
         ),
         if (showDivider)
           const Divider(
             height: 1,
+            thickness: 0.5,
             indent: DDSpacing.listTilePaddingH,
-            endIndent: DDSpacing.listTilePaddingH,
+            endIndent: 0,
+            color: DDColors.borderDefault,
           ),
       ],
     );
   }
 }
 
-/// DDSettingsTile — for settings rows with label, description, and a control widget
+/// DDSettingsTile — settings rows with label, description, and a trailing control
 class DDSettingsTile extends StatelessWidget {
   final String title;
   final String? description;
@@ -95,46 +115,52 @@ class DDSettingsTile extends StatelessWidget {
   Widget build(BuildContext context) {
     return InkWell(
       onTap: onTap,
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: DDSpacing.listTilePaddingH,
-          vertical: DDSpacing.listTilePaddingV,
-        ),
-        child: Row(
-          children: [
-            if (leading != null) ...[
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: DDColors.electricBlue.withValues(alpha: 0.1),
-                  borderRadius: BorderRadius.circular(DDSpacing.radiusSm),
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(minHeight: 56),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: DDSpacing.listTilePaddingH,
+            vertical: DDSpacing.listTilePaddingV,
+          ),
+          child: Row(
+            children: [
+              if (leading != null) ...[
+                SizedBox(
+                  width: 40,
+                  height: 40,
+                  child: Center(child: leading!),
                 ),
-                child: Center(child: leading!),
-              ),
-              const SizedBox(width: DDSpacing.md),
-            ],
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(title, style: DDTypography.body.copyWith(
-                    fontWeight: FontWeight.w500,
-                    color: DDColors.textPrimary,
-                  )),
-                  if (description != null) ...[
-                    const SizedBox(height: 2),
-                    Text(description!, style: DDTypography.caption),
+                const SizedBox(width: DDSpacing.md),
+              ],
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    Text(
+                      title,
+                      style: DDTypography.bodyM.copyWith(
+                        fontWeight: FontWeight.w500,
+                        color: DDColors.textPrimary,
+                      ),
+                    ),
+                    if (description != null) ...[
+                      const SizedBox(height: 2),
+                      Text(description!, style: DDTypography.caption),
+                    ],
                   ],
-                ],
+                ),
               ),
-            ),
-            if (trailing != null)
-              trailing!
-            else if (onTap != null)
-              const Icon(Icons.chevron_right,
-                  color: DDColors.textDisabled, size: 20),
-          ],
+              if (trailing != null)
+                trailing!
+              else if (onTap != null)
+                const Icon(
+                  Icons.chevron_right,
+                  color: DDColors.textDisabled,
+                  size: 20,
+                ),
+            ],
+          ),
         ),
       ),
     );

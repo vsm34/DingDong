@@ -3,10 +3,13 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../core/theme/dd_spacing.dart';
 import '../../../core/theme/dd_typography.dart';
-import '../../../components/dd_card.dart';
+import '../../../components/dd_button.dart';
+import '../../../components/dd_toast.dart';
 import '../../../providers/providers.dart';
 
-/// /debug — Developer screen: shows all provider states
+/// /debug — Developer-only screen. Not linked from production nav.
+/// Monospaced font. Auth state, device state, provider states.
+/// "Trigger mock motion event" + "Toggle LAN Reachable" buttons.
 class DebugScreen extends ConsumerWidget {
   const DebugScreen({super.key});
 
@@ -14,93 +17,95 @@ class DebugScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
     final device = ref.watch(deviceProvider);
+    final isLanReachable = ref.watch(lanReachableProvider);
     final eventsAsync = ref.watch(eventsProvider);
     final clipsAsync = ref.watch(clipsProvider);
     final settingsAsync = ref.watch(settingsProvider);
-    final lanReachable = ref.watch(lanReachableProvider);
     final onboarding = ref.watch(onboardingProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Debug')),
-      backgroundColor: DDColors.surface,
+      backgroundColor: DDColors.white,
+      appBar: AppBar(
+        backgroundColor: DDColors.white,
+        elevation: 0,
+        title: Text('Debug', style: DDTypography.h3),
+      ),
       body: ListView(
-        padding: const EdgeInsets.all(DDSpacing.pagePadding),
+        padding: const EdgeInsets.all(DDSpacing.lg),
         children: [
-          _DebugCard(
-            title: 'Auth State',
+          _DebugSection(
+            title: 'AUTH STATE',
             rows: {
-              'isAuthenticated': '${auth.isAuthenticated}',
               'uid': auth.user?.uid ?? 'null',
               'email': auth.user?.email ?? 'null',
               'displayName': auth.user?.displayName ?? 'null',
+              'isAuthenticated': '${auth.isAuthenticated}',
               'isLoading': '${auth.isLoading}',
             },
           ),
-          const SizedBox(height: DDSpacing.md),
-          _DebugCard(
-            title: 'Device',
+          const SizedBox(height: DDSpacing.lg),
+          _DebugSection(
+            title: 'DEVICE STATE',
             rows: {
               'deviceId': device.deviceId,
               'displayName': device.displayName,
+              'lanReachable': '$isLanReachable',
               'isOnline': '${device.isOnline}',
               'lastSeen': device.lastSeenLabel,
-              'firmwareVersion': device.firmwareVersion ?? 'null',
-              'motionEnabled': '${device.motionEnabled}',
-              'notifyEnabled': '${device.notifyEnabled}',
+              'fwVersion': device.firmwareVersion ?? 'null',
             },
           ),
-          const SizedBox(height: DDSpacing.md),
-          _DebugCard(
-            title: 'Events Provider',
+          const SizedBox(height: DDSpacing.lg),
+          _DebugSection(
+            title: 'PROVIDERS',
             rows: {
-              'state': eventsAsync.when(
-                loading: () => 'loading',
+              'events': eventsAsync.when(
+                data: (e) => '${e.length} events',
+                loading: () => 'loading...',
                 error: (e, _) => 'error: $e',
-                data: (d) => '${d.length} events',
               ),
-            },
-          ),
-          const SizedBox(height: DDSpacing.md),
-          _DebugCard(
-            title: 'Clips Provider',
-            rows: {
-              'state': clipsAsync.when(
-                loading: () => 'loading',
+              'clips': clipsAsync.when(
+                data: (c) => '${c.length} clips',
+                loading: () => 'loading...',
                 error: (e, _) => 'error: $e',
-                data: (d) => '${d.length} clips',
               ),
-            },
-          ),
-          const SizedBox(height: DDSpacing.md),
-          _DebugCard(
-            title: 'Device Settings',
-            rows: {
-              'state': settingsAsync.when(
-                loading: () => 'loading',
+              'settings': settingsAsync.when(
+                data: (s) =>
+                    'motion=${s.motionEnabled} notify=${s.notifyEnabled} clip=${s.clipLengthSec}s',
+                loading: () => 'loading...',
                 error: (e, _) => 'error: $e',
-                data: (s) => 'motion=${s.motionEnabled}, '
-                    'notify=${s.notifyEnabled}, '
-                    'mmwave=${s.mmwaveThreshold}, '
-                    'clip=${s.clipLengthSec}s',
               ),
-            },
-          ),
-          const SizedBox(height: DDSpacing.md),
-          _DebugCard(
-            title: 'Network & Onboarding',
-            rows: {
-              'lanReachable': '$lanReachable',
               'onboarding.step': onboarding.step.name,
-              'onboarding.isLoading': '${onboarding.isLoading}',
-              'onboarding.deviceName': onboarding.deviceName ?? 'null',
+              'onboarding.device': onboarding.deviceName ?? 'null',
+            },
+          ),
+          const SizedBox(height: DDSpacing.xl),
+          DDButton.primary(
+            label: 'Trigger Mock Motion Event',
+            onPressed: () {
+              ref.invalidate(eventsProvider);
+              DDToast.success(context, 'Mock motion event triggered.');
+            },
+          ),
+          const SizedBox(height: DDSpacing.md),
+          DDButton.secondary(
+            label: isLanReachable
+                ? 'Simulate Going Off-LAN'
+                : 'Simulate Going On-LAN',
+            onPressed: () {
+              ref.read(lanReachableProvider.notifier).state = !isLanReachable;
+              DDToast.info(
+                context,
+                'LAN: ${!isLanReachable ? "reachable" : "unreachable"}',
+              );
             },
           ),
           const SizedBox(height: DDSpacing.xl),
           Center(
             child: Text(
-              'Phase 1 — All data is mock\nNo Firebase or network calls',
-              style: DDTypography.caption,
-              textAlign: TextAlign.center,
+              'Phase 1 — All data is mock',
+              style: DDTypography.mono.copyWith(
+                  color: DDColors.textMuted, fontSize: 11),
             ),
           ),
         ],
@@ -109,48 +114,64 @@ class DebugScreen extends ConsumerWidget {
   }
 }
 
-class _DebugCard extends StatelessWidget {
+class _DebugSection extends StatelessWidget {
   final String title;
   final Map<String, String> rows;
 
-  const _DebugCard({required this.title, required this.rows});
+  const _DebugSection({required this.title, required this.rows});
 
   @override
   Widget build(BuildContext context) {
-    return DDCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(title,
-              style: DDTypography.labelLg
-                  .copyWith(color: DDColors.navyPrimary)),
-          const SizedBox(height: DDSpacing.sm),
-          const Divider(height: 1),
-          ...rows.entries.map((e) => Padding(
-                padding: const EdgeInsets.symmetric(
-                    vertical: DDSpacing.xs),
-                child: Row(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    SizedBox(
-                      width: 140,
-                      child: Text(e.key,
-                          style: DDTypography.caption.copyWith(
-                              color: DDColors.textSecondary)),
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          title,
+          style: DDTypography.mono.copyWith(
+            color: DDColors.hunterGreen,
+            fontWeight: FontWeight.w700,
+            fontSize: 12,
+          ),
+        ),
+        const SizedBox(height: DDSpacing.sm),
+        Container(
+          padding: const EdgeInsets.all(DDSpacing.md),
+          decoration: BoxDecoration(
+            color: DDColors.softGreenGray,
+            borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
+            border: Border.all(color: DDColors.borderDefault, width: 0.5),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: rows.entries
+                .map(
+                  (e) => Padding(
+                    padding: const EdgeInsets.symmetric(vertical: 2),
+                    child: Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        SizedBox(
+                          width: 130,
+                          child: Text(
+                            e.key,
+                            style: DDTypography.mono.copyWith(
+                                color: DDColors.textMuted, fontSize: 12),
+                          ),
+                        ),
+                        Expanded(
+                          child: Text(
+                            e.value,
+                            style: DDTypography.mono.copyWith(fontSize: 12),
+                          ),
+                        ),
+                      ],
                     ),
-                    Expanded(
-                      child: Text(
-                        e.value,
-                        style: DDTypography.caption.copyWith(
-                            color: DDColors.textPrimary,
-                            fontWeight: FontWeight.w500),
-                      ),
-                    ),
-                  ],
-                ),
-              )),
-        ],
-      ),
+                  ),
+                )
+                .toList(),
+          ),
+        ),
+      ],
     );
   }
 }

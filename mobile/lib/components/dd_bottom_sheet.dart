@@ -2,8 +2,13 @@ import 'package:flutter/material.dart';
 import '../core/theme/dd_colors.dart';
 import '../core/theme/dd_spacing.dart';
 import '../core/theme/dd_typography.dart';
+import 'dd_button.dart';
 
-/// DDBottomSheet — action/confirmation/settings bottom sheets
+/// DDBottomSheet — per PRD Section 5.6
+/// background: #FFFFFF, radius: lg (12px) top corners only
+/// drag handle: 4px × 32px, #E0E0DC, centered, 12px from top
+/// padding: 24px, max-height: 80% screen
+/// backdrop: rgba(0,0,0,0.4) with fade animation
 class DDBottomSheet extends StatelessWidget {
   final String? title;
   final String? subtitle;
@@ -18,7 +23,6 @@ class DDBottomSheet extends StatelessWidget {
     this.actions,
   });
 
-  /// Show the bottom sheet
   static Future<T?> show<T>({
     required BuildContext context,
     required Widget child,
@@ -32,9 +36,10 @@ class DDBottomSheet extends StatelessWidget {
       isDismissible: isDismissible,
       isScrollControlled: true,
       backgroundColor: DDColors.white,
+      barrierColor: Colors.black.withValues(alpha: 0.4),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(DDSpacing.radiusXl),
+          top: Radius.circular(DDSpacing.radiusLg),
         ),
       ),
       builder: (_) => DDBottomSheet(
@@ -48,70 +53,80 @@ class DDBottomSheet extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: EdgeInsets.only(
-        bottom: MediaQuery.of(context).viewInsets.bottom,
+    return ConstrainedBox(
+      constraints: BoxConstraints(
+        maxHeight: MediaQuery.of(context).size.height * 0.8,
       ),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Handle bar
-          Center(
-            child: Container(
-              margin: const EdgeInsets.only(top: DDSpacing.sm),
-              width: 40,
-              height: 4,
-              decoration: BoxDecoration(
-                color: DDColors.divider,
-                borderRadius: BorderRadius.circular(DDSpacing.radiusFull),
+      child: Padding(
+        padding: EdgeInsets.only(
+          bottom: MediaQuery.of(context).viewInsets.bottom,
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            // Drag handle
+            Center(
+              child: Container(
+                margin: const EdgeInsets.only(top: DDSpacing.md),
+                width: 32,
+                height: 4,
+                decoration: BoxDecoration(
+                  color: DDColors.borderDefault,
+                  borderRadius: BorderRadius.circular(DDSpacing.radiusFull),
+                ),
               ),
             ),
-          ),
-          if (title != null) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                DDSpacing.pagePadding,
-                DDSpacing.md,
-                DDSpacing.pagePadding,
-                0,
+            if (title != null) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  DDSpacing.lg,
+                  DDSpacing.md,
+                  DDSpacing.lg,
+                  0,
+                ),
+                child: Text(title!, style: DDTypography.h2),
               ),
-              child: Text(title!, style: DDTypography.h2),
+            ],
+            if (subtitle != null) ...[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  DDSpacing.lg,
+                  DDSpacing.xs,
+                  DDSpacing.lg,
+                  0,
+                ),
+                child: Text(
+                  subtitle!,
+                  style: DDTypography.bodyM.copyWith(color: DDColors.textMuted),
+                ),
+              ),
+            ],
+            Flexible(
+              child: Padding(
+                padding: const EdgeInsets.all(DDSpacing.lg),
+                child: child,
+              ),
             ),
+            if (actions != null) ...[
+              const Divider(height: 1, thickness: 0.5),
+              Padding(
+                padding: const EdgeInsets.all(DDSpacing.lg),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: actions!,
+                ),
+              ),
+            ],
+            SizedBox(height: MediaQuery.of(context).padding.bottom),
           ],
-          if (subtitle != null) ...[
-            Padding(
-              padding: const EdgeInsets.fromLTRB(
-                DDSpacing.pagePadding,
-                DDSpacing.xs,
-                DDSpacing.pagePadding,
-                0,
-              ),
-              child: Text(subtitle!, style: DDTypography.bodySm),
-            ),
-          ],
-          Padding(
-            padding: const EdgeInsets.all(DDSpacing.pagePadding),
-            child: child,
-          ),
-          if (actions != null) ...[
-            const Divider(height: 1),
-            Padding(
-              padding: const EdgeInsets.all(DDSpacing.pagePadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: actions!,
-              ),
-            ),
-          ],
-          SizedBox(height: MediaQuery.of(context).padding.bottom),
-        ],
+        ),
       ),
     );
   }
 }
 
-/// Confirmation bottom sheet helper
+/// DDConfirmSheet — confirmation bottom sheet with destructive or normal confirm
 class DDConfirmSheet extends StatelessWidget {
   final String title;
   final String message;
@@ -142,9 +157,10 @@ class DDConfirmSheet extends StatelessWidget {
     return showModalBottomSheet<bool>(
       context: context,
       backgroundColor: DDColors.white,
+      barrierColor: Colors.black.withValues(alpha: 0.4),
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(
-          top: Radius.circular(DDSpacing.radiusXl),
+          top: Radius.circular(DDSpacing.radiusLg),
         ),
       ),
       builder: (_) => DDConfirmSheet(
@@ -161,21 +177,21 @@ class DDConfirmSheet extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.fromLTRB(
-        DDSpacing.pagePadding,
+      padding: EdgeInsets.fromLTRB(
+        DDSpacing.lg,
         DDSpacing.md,
-        DDSpacing.pagePadding,
-        DDSpacing.pagePadding,
+        DDSpacing.lg,
+        DDSpacing.lg + MediaQuery.of(context).padding.bottom,
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
           Center(
             child: Container(
-              width: 40,
+              width: 32,
               height: 4,
               decoration: BoxDecoration(
-                color: DDColors.divider,
+                color: DDColors.borderDefault,
                 borderRadius: BorderRadius.circular(DDSpacing.radiusFull),
               ),
             ),
@@ -183,38 +199,32 @@ class DDConfirmSheet extends StatelessWidget {
           const SizedBox(height: DDSpacing.md),
           Text(title, style: DDTypography.h2, textAlign: TextAlign.center),
           const SizedBox(height: DDSpacing.sm),
-          Text(message,
-              style: DDTypography.body
-                  .copyWith(color: DDColors.textSecondary),
-              textAlign: TextAlign.center),
+          Text(
+            message,
+            style: DDTypography.bodyM.copyWith(color: DDColors.textMuted),
+            textAlign: TextAlign.center,
+          ),
           const SizedBox(height: DDSpacing.lg),
-          ElevatedButton(
-            onPressed: () {
-              Navigator.of(context).pop(true);
-              onConfirm();
-            },
-            style: ElevatedButton.styleFrom(
-              backgroundColor: isDestructive ? DDColors.error : DDColors.navyPrimary,
-              minimumSize:
-                  const Size(double.infinity, DDSpacing.buttonHeight),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
-              ),
-            ),
-            child: Text(confirmLabel, style: DDTypography.button.copyWith(color: DDColors.white)),
-          ),
+          isDestructive
+              ? DDButton.destructive(
+                  label: confirmLabel,
+                  onPressed: () {
+                    Navigator.of(context).pop(true);
+                    onConfirm();
+                  },
+                )
+              : DDButton.primary(
+                  label: confirmLabel,
+                  onPressed: () {
+                    Navigator.of(context).pop(true);
+                    onConfirm();
+                  },
+                ),
           const SizedBox(height: DDSpacing.sm),
-          TextButton(
+          DDButton.secondary(
+            label: cancelLabel,
             onPressed: () => Navigator.of(context).pop(false),
-            style: TextButton.styleFrom(
-              minimumSize:
-                  const Size(double.infinity, DDSpacing.buttonHeight),
-            ),
-            child: Text(cancelLabel,
-                style: DDTypography.button
-                    .copyWith(color: DDColors.textSecondary)),
           ),
-          SizedBox(height: MediaQuery.of(context).padding.bottom),
         ],
       ),
     );

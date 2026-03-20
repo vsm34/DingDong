@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
-/// Home screen shell — bottom navigation wrapper
+/// Home screen shell — StatefulShellRoute wrapper with bottom nav.
+/// Tabs: Events, Clips, Live, Settings.
 class HomeScreen extends StatelessWidget {
   final StatefulNavigationShell navigationShell;
 

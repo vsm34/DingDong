@@ -26,4 +26,8 @@ abstract class DeviceApi {
 
   /// POST /settings
   Future<void> updateSettings(DeviceSettings settings);
+
+  /// Returns the MJPEG stream URL for the live view tab
+  /// Format: http://dingdong-<deviceId>.local/api/v1/stream
+  String getStreamUrl();
 }

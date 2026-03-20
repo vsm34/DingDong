@@ -4,23 +4,24 @@ import 'package:google_fonts/google_fonts.dart';
 import 'dd_colors.dart';
 import 'dd_spacing.dart';
 
-/// DDTheme — DingDong's centralized Material theme
+/// DDTheme — DingDong light-mode Material theme
+/// Hunter green + amber palette. No blue anywhere.
 abstract final class DDTheme {
   static ThemeData get light {
     final base = ThemeData(
       useMaterial3: true,
       colorScheme: ColorScheme.fromSeed(
-        seedColor: DDColors.navyPrimary,
-        primary: DDColors.navyPrimary,
-        secondary: DDColors.electricBlue,
-        surface: DDColors.surface,
+        seedColor: DDColors.hunterGreen,
+        primary: DDColors.hunterGreen,
+        secondary: DDColors.amber,
+        surface: DDColors.white,
         error: DDColors.error,
         onPrimary: DDColors.white,
-        onSecondary: DDColors.white,
+        onSecondary: DDColors.textPrimary,
         onSurface: DDColors.textPrimary,
         brightness: Brightness.light,
       ),
-      scaffoldBackgroundColor: DDColors.surface,
+      scaffoldBackgroundColor: DDColors.white,
       textTheme: GoogleFonts.interTextTheme(ThemeData.light().textTheme).copyWith(
         displayLarge: GoogleFonts.inter(
             fontSize: 32, fontWeight: FontWeight.w700, color: DDColors.textPrimary),
@@ -33,79 +34,82 @@ abstract final class DDTheme {
         bodyMedium: GoogleFonts.inter(
             fontSize: 14, fontWeight: FontWeight.w400, color: DDColors.textPrimary),
         bodySmall: GoogleFonts.inter(
-            fontSize: 12, fontWeight: FontWeight.w400, color: DDColors.textSecondary),
+            fontSize: 12, fontWeight: FontWeight.w400, color: DDColors.textMuted),
         labelLarge: GoogleFonts.inter(
-            fontSize: 16, fontWeight: FontWeight.w600, color: DDColors.white),
+            fontSize: 13, fontWeight: FontWeight.w500, color: DDColors.white),
       ),
     );
 
     return base.copyWith(
       appBarTheme: AppBarTheme(
-        backgroundColor: DDColors.navyPrimary,
-        foregroundColor: DDColors.white,
-        elevation: DDSpacing.elevationNone,
+        backgroundColor: DDColors.white,
+        foregroundColor: DDColors.textPrimary,
+        elevation: 0,
+        scrolledUnderElevation: 0,
         centerTitle: false,
         titleTextStyle: GoogleFonts.inter(
-          fontSize: 18,
+          fontSize: 17,
           fontWeight: FontWeight.w600,
-          color: DDColors.white,
+          color: DDColors.textPrimary,
         ),
-        systemOverlayStyle: SystemUiOverlayStyle.light,
-        iconTheme: const IconThemeData(color: DDColors.white),
+        systemOverlayStyle: SystemUiOverlayStyle.dark,
+        iconTheme: const IconThemeData(color: DDColors.textPrimary),
+        surfaceTintColor: Colors.transparent,
+        shadowColor: Colors.transparent,
       ),
       navigationBarTheme: NavigationBarThemeData(
         backgroundColor: DDColors.white,
-        indicatorColor: DDColors.electricBlue.withValues(alpha: 0.12),
+        indicatorColor: DDColors.hunterGreen.withValues(alpha: 0.1),
         labelTextStyle: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
             return GoogleFonts.inter(
                 fontSize: 12,
                 fontWeight: FontWeight.w600,
-                color: DDColors.navyPrimary);
+                color: DDColors.hunterGreen);
           }
           return GoogleFonts.inter(
               fontSize: 12,
               fontWeight: FontWeight.w400,
-              color: DDColors.textSecondary);
+              color: DDColors.textMuted);
         }),
         iconTheme: WidgetStateProperty.resolveWith((states) {
           if (states.contains(WidgetState.selected)) {
-            return const IconThemeData(color: DDColors.navyPrimary, size: 24);
+            return const IconThemeData(color: DDColors.hunterGreen, size: 24);
           }
-          return const IconThemeData(color: DDColors.textSecondary, size: 24);
+          return const IconThemeData(color: DDColors.textMuted, size: 24);
         }),
-        elevation: DDSpacing.elevationSm,
+        elevation: 0,
         height: DDSpacing.bottomNavHeight,
         surfaceTintColor: Colors.transparent,
-        shadowColor: DDColors.navyPrimary.withValues(alpha: 0.08),
+        shadowColor: Colors.transparent,
       ),
       cardTheme: CardThemeData(
         color: DDColors.white,
-        elevation: DDSpacing.elevationNone,
+        elevation: 0,
         shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(DDSpacing.radiusLg),
-          side: const BorderSide(color: DDColors.divider, width: 1),
+          borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
+          side: const BorderSide(color: DDColors.borderDefault, width: 0.5),
         ),
         margin: EdgeInsets.zero,
       ),
       inputDecorationTheme: InputDecorationTheme(
         filled: true,
-        fillColor: DDColors.white,
+        fillColor: DDColors.softGreenGray,
         contentPadding: const EdgeInsets.symmetric(
           horizontal: DDSpacing.md,
           vertical: DDSpacing.md,
         ),
         border: OutlineInputBorder(
           borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
-          borderSide: const BorderSide(color: DDColors.divider),
+          borderSide: const BorderSide(color: DDColors.borderDefault),
         ),
         enabledBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
-          borderSide: const BorderSide(color: DDColors.divider),
+          borderSide: const BorderSide(color: DDColors.borderDefault),
         ),
         focusedBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
-          borderSide: const BorderSide(color: DDColors.electricBlue, width: 2),
+          borderSide: const BorderSide(color: DDColors.hunterGreen, width: 1.5),
         ),
         errorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
@@ -113,63 +117,61 @@ abstract final class DDTheme {
         ),
         focusedErrorBorder: OutlineInputBorder(
           borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
-          borderSide: const BorderSide(color: DDColors.error, width: 2),
+          borderSide: const BorderSide(color: DDColors.error, width: 1.5),
         ),
-        labelStyle:
-            GoogleFonts.inter(fontSize: 14, color: DDColors.textSecondary),
-        hintStyle:
-            GoogleFonts.inter(fontSize: 14, color: DDColors.textDisabled),
+        labelStyle: GoogleFonts.inter(fontSize: 12, color: DDColors.textMuted),
+        hintStyle: GoogleFonts.inter(fontSize: 14, color: DDColors.textDisabled),
         errorStyle: GoogleFonts.inter(fontSize: 12, color: DDColors.error),
       ),
       elevatedButtonTheme: ElevatedButtonThemeData(
         style: ElevatedButton.styleFrom(
-          backgroundColor: DDColors.navyPrimary,
+          backgroundColor: DDColors.hunterGreen,
           foregroundColor: DDColors.white,
           minimumSize: const Size(double.infinity, DDSpacing.buttonHeight),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
           ),
-          elevation: DDSpacing.elevationNone,
+          elevation: 0,
           textStyle: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.1,
           ),
         ),
       ),
       outlinedButtonTheme: OutlinedButtonThemeData(
         style: OutlinedButton.styleFrom(
-          foregroundColor: DDColors.navyPrimary,
+          foregroundColor: DDColors.hunterGreen,
           minimumSize: const Size(double.infinity, DDSpacing.buttonHeight),
           shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
           ),
-          side: const BorderSide(color: DDColors.navyPrimary, width: 1.5),
+          side: const BorderSide(color: DDColors.hunterGreen, width: 1),
           textStyle: GoogleFonts.inter(
-            fontSize: 16,
-            fontWeight: FontWeight.w600,
+            fontSize: 13,
+            fontWeight: FontWeight.w500,
+            letterSpacing: 0.1,
           ),
         ),
       ),
       textButtonTheme: TextButtonThemeData(
         style: TextButton.styleFrom(
-          foregroundColor: DDColors.electricBlue,
+          foregroundColor: DDColors.hunterGreen,
           textStyle: GoogleFonts.inter(
             fontSize: 14,
-            fontWeight: FontWeight.w600,
+            fontWeight: FontWeight.w500,
           ),
         ),
       ),
       dividerTheme: const DividerThemeData(
-        color: DDColors.divider,
-        thickness: 1,
+        color: DDColors.borderDefault,
+        thickness: 0.5,
         space: 0,
       ),
       snackBarTheme: SnackBarThemeData(
         backgroundColor: DDColors.textPrimary,
         contentTextStyle: GoogleFonts.inter(fontSize: 14, color: DDColors.white),
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
-        ),
+        shape: const StadiumBorder(),
         behavior: SnackBarBehavior.floating,
         insetPadding: const EdgeInsets.all(DDSpacing.md),
       ),
@@ -179,32 +181,38 @@ abstract final class DDTheme {
           return DDColors.textDisabled;
         }),
         trackColor: WidgetStateProperty.resolveWith((states) {
-          if (states.contains(WidgetState.selected)) return DDColors.electricBlue;
-          return DDColors.surfaceVariant;
+          if (states.contains(WidgetState.selected)) return DDColors.hunterGreen;
+          return DDColors.softGreenGray;
         }),
       ),
       sliderTheme: SliderThemeData(
-        activeTrackColor: DDColors.electricBlue,
-        inactiveTrackColor: DDColors.surfaceVariant,
-        thumbColor: DDColors.navyPrimary,
-        overlayColor: DDColors.navyPrimary.withValues(alpha: 0.12),
-        valueIndicatorColor: DDColors.navyPrimary,
+        activeTrackColor: DDColors.hunterGreen,
+        inactiveTrackColor: DDColors.softGreenGray,
+        thumbColor: DDColors.hunterGreen,
+        overlayColor: DDColors.hunterGreen.withValues(alpha: 0.12),
+        valueIndicatorColor: DDColors.hunterGreen,
         valueIndicatorTextStyle: GoogleFonts.inter(
             fontSize: 12, fontWeight: FontWeight.w600, color: DDColors.white),
       ),
       progressIndicatorTheme: const ProgressIndicatorThemeData(
-        color: DDColors.electricBlue,
-        linearTrackColor: DDColors.surfaceVariant,
+        color: DDColors.hunterGreen,
+        linearTrackColor: DDColors.softGreenGray,
       ),
       bottomSheetTheme: const BottomSheetThemeData(
         backgroundColor: DDColors.white,
         modalBackgroundColor: DDColors.white,
         shape: RoundedRectangleBorder(
           borderRadius: BorderRadius.vertical(
-              top: Radius.circular(DDSpacing.radiusXl)),
+              top: Radius.circular(DDSpacing.radiusLg)),
         ),
         elevation: 0,
         modalElevation: 0,
+      ),
+      chipTheme: ChipThemeData(
+        backgroundColor: DDColors.softGreenGray,
+        selectedColor: DDColors.hunterGreen,
+        labelStyle: GoogleFonts.inter(fontSize: 13, fontWeight: FontWeight.w500),
+        shape: const StadiumBorder(),
       ),
     );
   }

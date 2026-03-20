@@ -40,3 +40,5 @@ firmware/build/
 firmware/managed_components/
 firmware/sdkconfig
 firmware/.cache/
+# ─── Claude Code ─────────────────────────────────────────────────────────────
+.claude/settings.local.json

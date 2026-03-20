@@ -1,14 +1,18 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../core/theme/dd_spacing.dart';
 import '../../../core/theme/dd_typography.dart';
-import '../../../components/dd_button.dart';
-import '../../../components/dd_card.dart';
+import '../../../components/dd_bottom_sheet.dart';
+import '../../../components/dd_loading_indicator.dart';
 import '../../../models/clip_model.dart';
 import '../../../providers/providers.dart';
 
+/// /clips/:clipId — Clip player.
+/// Phase 1: mock player. Phase 2B: better_player integration.
+/// Back button, info button, seek bar, play/pause, fullscreen.
 class ClipPlayerScreen extends ConsumerStatefulWidget {
   final String clipId;
 
@@ -19,224 +23,171 @@ class ClipPlayerScreen extends ConsumerStatefulWidget {
 }
 
 class _ClipPlayerScreenState extends ConsumerState<ClipPlayerScreen> {
-  bool _isDownloading = false;
-  double _downloadProgress = 0;
-  bool _isPlaying = false;
-  bool _downloadComplete = false;
   DdClip? _clip;
+  bool _isPlaying = false;
+  double _progress = 0.0;
 
   @override
   void initState() {
     super.initState();
-    _loadClipInfo();
+    _loadClip();
   }
 
-  Future<void> _loadClipInfo() async {
+  Future<void> _loadClip() async {
     final clips = await ref.read(clipsProvider.future);
     if (mounted) {
       setState(() {
-        try {
-          _clip = clips.firstWhere((c) => c.clipId == widget.clipId);
-        } catch (_) {}
+        _clip = clips.where((c) => c.clipId == widget.clipId).firstOrNull;
       });
     }
-  }
-
-  Future<void> _downloadAndPlay() async {
-    setState(() {
-      _isDownloading = true;
-      _downloadProgress = 0;
-    });
-
-    // Simulate progressive download
-    for (var i = 1; i <= 10; i++) {
-      await Future.delayed(const Duration(milliseconds: 120));
-      if (!mounted) return;
-      setState(() => _downloadProgress = i / 10);
-    }
-
-    setState(() {
-      _isDownloading = false;
-      _downloadComplete = true;
-      _isPlaying = true;
-    });
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: Colors.black,
-      appBar: AppBar(
-        backgroundColor: Colors.black,
-        foregroundColor: DDColors.white,
-        title: Text(
-          _clip != null
-              ? DateFormat('MMM d, h:mm a').format(_clip!.timestamp)
-              : widget.clipId,
-          style: DDTypography.body.copyWith(color: DDColors.white),
-        ),
-      ),
-      body: Column(
+      body: Stack(
         children: [
-          // Video area
-          AspectRatio(
-            aspectRatio: 16 / 9,
-            child: Container(
-              color: Colors.black,
-              child: _buildVideoArea(),
-            ),
-          ),
-          // Controls area
-          Expanded(
-            child: Container(
-              color: DDColors.surface,
-              padding: const EdgeInsets.all(DDSpacing.pagePadding),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  if (_clip != null) ...[
-                    DDCard(
-                      child: Column(
-                        children: [
-                          _InfoRow(
-                              label: 'Duration',
-                              value: _clip!.durationLabel),
-                          const Divider(height: 1),
-                          _InfoRow(label: 'Size', value: _clip!.sizeLabel),
-                          const Divider(height: 1),
-                          _InfoRow(
-                            label: 'Recorded',
-                            value: DateFormat('MMM d, yyyy h:mm a')
-                                .format(_clip!.timestamp),
-                          ),
-                        ],
-                      ),
+          // Video placeholder (Phase 2B: better_player)
+          Center(
+            child: AspectRatio(
+              aspectRatio: 16 / 9,
+              child: GestureDetector(
+                onTap: () => setState(() => _isPlaying = !_isPlaying),
+                child: Container(
+                  color: const Color(0xFF111111),
+                  child: Center(
+                    child: Icon(
+                      _isPlaying ? Icons.pause_circle : Icons.play_circle,
+                      size: 72,
+                      color: Colors.white24,
                     ),
-                    const SizedBox(height: DDSpacing.lg),
-                  ],
-                  if (!_downloadComplete && !_isDownloading)
-                    DDButton.primary(
-                      label: 'Download & Play',
-                      onPressed: _downloadAndPlay,
-                      leading: const Icon(Icons.download_outlined,
-                          color: DDColors.white, size: 20),
-                    ),
-                ],
+                  ),
+                ),
               ),
             ),
           ),
+          // Top bar
+          Positioned(
+            top: MediaQuery.of(context).padding.top,
+            left: 0,
+            right: 0,
+            child: Row(
+              children: [
+                IconButton(
+                  onPressed: () => context.pop(),
+                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                ),
+                const Spacer(),
+                if (_clip != null)
+                  IconButton(
+                    onPressed: () => _showMetadata(context),
+                    icon: const Icon(Icons.info_outline, color: Colors.white),
+                  ),
+              ],
+            ),
+          ),
+          // Bottom controls
+          Positioned(
+            bottom: MediaQuery.of(context).padding.bottom + DDSpacing.lg,
+            left: DDSpacing.lg,
+            right: DDSpacing.lg,
+            child: Column(
+              children: [
+                SliderTheme(
+                  data: SliderTheme.of(context).copyWith(
+                    thumbColor: DDColors.hunterGreen,
+                    activeTrackColor: DDColors.hunterGreen,
+                    inactiveTrackColor: Colors.white24,
+                    thumbShape: const RoundSliderThumbShape(
+                        enabledThumbRadius: 6),
+                    trackHeight: 3,
+                  ),
+                  child: Slider(
+                    value: _progress,
+                    onChanged: (v) => setState(() => _progress = v),
+                  ),
+                ),
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                    IconButton(
+                      onPressed: () =>
+                          setState(() => _isPlaying = !_isPlaying),
+                      icon: Icon(
+                        _isPlaying ? Icons.pause : Icons.play_arrow,
+                        color: Colors.white,
+                        size: 32,
+                      ),
+                    ),
+                    const SizedBox(width: DDSpacing.md),
+                    IconButton(
+                      onPressed: () {},
+                      icon: const Icon(
+                        Icons.fullscreen,
+                        color: Colors.white,
+                        size: 28,
+                      ),
+                    ),
+                  ],
+                ),
+              ],
+            ),
+          ),
+          // Loading overlay if clip not yet resolved
+          if (_clip == null)
+            const Center(
+              child: DDLoadingIndicator(size: DDLoadingSize.lg),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildVideoArea() {
-    if (_isDownloading) {
-      return Center(
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            SizedBox(
-              width: 60,
-              height: 60,
-              child: CircularProgressIndicator(
-                value: _downloadProgress,
-                strokeWidth: 4,
-                color: DDColors.electricBlue,
-                backgroundColor: DDColors.white.withValues(alpha: 0.2),
-              ),
-            ),
-            const SizedBox(height: DDSpacing.md),
-            Text(
-              '${(_downloadProgress * 100).toInt()}%',
-              style:
-                  DDTypography.h3.copyWith(color: DDColors.white),
-            ),
-            const SizedBox(height: DDSpacing.xs),
-            Text(
-              'Downloading clip…',
-              style:
-                  DDTypography.body.copyWith(color: DDColors.textOnDarkSecondary),
-            ),
-          ],
-        ),
-      );
-    }
-
-    if (_downloadComplete) {
-      return Stack(
-        alignment: Alignment.center,
-        children: [
-          Container(
-            color: DDColors.navyDark,
-            child: Center(
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    _isPlaying ? Icons.pause_circle_outline : Icons.play_circle_outline,
-                    size: 64,
-                    color: DDColors.white.withValues(alpha: 0.9),
-                  ),
-                  if (_isPlaying) ...[
-                    const SizedBox(height: DDSpacing.sm),
-                    Text(
-                      'Mock playback (Phase 1)',
-                      style: DDTypography.caption
-                          .copyWith(color: DDColors.textOnDarkSecondary),
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          Positioned.fill(
-            child: GestureDetector(
-              onTap: () => setState(() => _isPlaying = !_isPlaying),
-              behavior: HitTestBehavior.translucent,
-            ),
-          ),
-        ],
-      );
-    }
-
-    // Initial state
-    return Center(
+  void _showMetadata(BuildContext context) {
+    final clip = _clip!;
+    DDBottomSheet.show(
+      context: context,
+      title: 'Clip Info',
       child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         mainAxisSize: MainAxisSize.min,
         children: [
-          const Icon(Icons.videocam_outlined,
-              size: 48, color: DDColors.textOnDarkSecondary),
-          const SizedBox(height: DDSpacing.sm),
-          Text(
-            'Tap Download & Play to watch',
-            style: DDTypography.body
-                .copyWith(color: DDColors.textOnDarkSecondary),
+          _MetaRow(
+            label: 'Recorded',
+            value: DateFormat('MMM d, yyyy h:mm a').format(clip.timestamp),
           ),
+          _MetaRow(label: 'Duration', value: clip.durationLabel),
+          _MetaRow(label: 'Size', value: clip.sizeLabel),
+          _MetaRow(label: 'ID', value: clip.clipId),
         ],
       ),
     );
   }
 }
 
-class _InfoRow extends StatelessWidget {
+class _MetaRow extends StatelessWidget {
   final String label;
   final String value;
 
-  const _InfoRow({required this.label, required this.value});
+  const _MetaRow({required this.label, required this.value});
 
   @override
   Widget build(BuildContext context) {
     return Padding(
-      padding: const EdgeInsets.symmetric(
-          horizontal: DDSpacing.md, vertical: DDSpacing.sm),
+      padding: const EdgeInsets.symmetric(vertical: DDSpacing.sm),
       child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceBetween,
         children: [
-          Text(label,
-              style: DDTypography.body
-                  .copyWith(color: DDColors.textSecondary)),
-          Text(value, style: DDTypography.body),
+          SizedBox(
+            width: 80,
+            child: Text(
+              label,
+              style: DDTypography.caption.copyWith(color: DDColors.textMuted),
+            ),
+          ),
+          Expanded(
+            child: Text(value, style: DDTypography.bodyM),
+          ),
         ],
       ),
     );

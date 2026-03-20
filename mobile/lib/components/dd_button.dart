@@ -3,15 +3,14 @@ import '../core/theme/dd_colors.dart';
 import '../core/theme/dd_spacing.dart';
 import '../core/theme/dd_typography.dart';
 
-enum DDButtonVariant { primary, secondary, destructive, ghost }
-enum DDButtonSize { normal, small }
+enum DDButtonVariant { primary, secondary, destructive }
 
-/// DDButton — branded button with primary, secondary, destructive, ghost variants
+/// DDButton — per PRD Section 5.6
+/// Three variants: primary (green), secondary (outlined green), destructive (red tint)
 class DDButton extends StatelessWidget {
   final String label;
   final VoidCallback? onPressed;
   final DDButtonVariant variant;
-  final DDButtonSize size;
   final Widget? leading;
   final bool isLoading;
   final bool fullWidth;
@@ -21,13 +20,11 @@ class DDButton extends StatelessWidget {
     required this.label,
     required this.onPressed,
     this.variant = DDButtonVariant.primary,
-    this.size = DDButtonSize.normal,
     this.leading,
     this.isLoading = false,
     this.fullWidth = true,
   });
 
-  // Convenience constructors
   const DDButton.primary({
     super.key,
     required this.label,
@@ -35,7 +32,6 @@ class DDButton extends StatelessWidget {
     this.leading,
     this.isLoading = false,
     this.fullWidth = true,
-    this.size = DDButtonSize.normal,
   }) : variant = DDButtonVariant.primary;
 
   const DDButton.secondary({
@@ -45,7 +41,6 @@ class DDButton extends StatelessWidget {
     this.leading,
     this.isLoading = false,
     this.fullWidth = true,
-    this.size = DDButtonSize.normal,
   }) : variant = DDButtonVariant.secondary;
 
   const DDButton.destructive({
@@ -55,124 +50,95 @@ class DDButton extends StatelessWidget {
     this.leading,
     this.isLoading = false,
     this.fullWidth = true,
-    this.size = DDButtonSize.normal,
   }) : variant = DDButtonVariant.destructive;
-
-  const DDButton.ghost({
-    super.key,
-    required this.label,
-    required this.onPressed,
-    this.leading,
-    this.isLoading = false,
-    this.fullWidth = true,
-    this.size = DDButtonSize.normal,
-  }) : variant = DDButtonVariant.ghost;
 
   @override
   Widget build(BuildContext context) {
-    final isSmall = size == DDButtonSize.small;
-    final height =
-        isSmall ? DDSpacing.buttonHeightSm : DDSpacing.buttonHeight;
-    final labelStyle =
-        isSmall ? DDTypography.buttonSm : DDTypography.button;
-
     final disabled = onPressed == null || isLoading;
 
     switch (variant) {
       case DDButtonVariant.primary:
         return SizedBox(
           width: fullWidth ? double.infinity : null,
-          height: height,
+          height: DDSpacing.buttonHeight,
           child: ElevatedButton(
             onPressed: disabled ? null : onPressed,
             style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  disabled ? DDColors.textDisabled : DDColors.navyPrimary,
+              backgroundColor: disabled
+                  ? DDColors.hunterGreen.withValues(alpha: 0.4)
+                  : DDColors.hunterGreen,
               foregroundColor: DDColors.white,
-              minimumSize: Size(0, height),
+              minimumSize: const Size(0, DDSpacing.buttonHeight),
+              padding: const EdgeInsets.symmetric(
+                  vertical: 14, horizontal: DDSpacing.lg),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
               ),
               elevation: 0,
             ),
-            child: _buildChild(labelStyle, DDColors.white),
+            child: _buildChild(DDColors.white),
           ),
         );
 
       case DDButtonVariant.secondary:
         return SizedBox(
           width: fullWidth ? double.infinity : null,
-          height: height,
+          height: DDSpacing.buttonHeight,
           child: OutlinedButton(
             onPressed: disabled ? null : onPressed,
             style: OutlinedButton.styleFrom(
-              foregroundColor:
-                  disabled ? DDColors.textDisabled : DDColors.navyPrimary,
-              minimumSize: Size(0, height),
+              foregroundColor: disabled
+                  ? DDColors.hunterGreen.withValues(alpha: 0.4)
+                  : DDColors.hunterGreen,
+              minimumSize: const Size(0, DDSpacing.buttonHeight),
+              padding: const EdgeInsets.symmetric(
+                  vertical: 14, horizontal: DDSpacing.lg),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
               ),
               side: BorderSide(
-                  color: disabled ? DDColors.textDisabled : DDColors.navyPrimary,
-                  width: 1.5),
+                color: disabled
+                    ? DDColors.hunterGreen.withValues(alpha: 0.4)
+                    : DDColors.hunterGreen,
+              ),
             ),
             child: _buildChild(
-                labelStyle,
-                disabled ? DDColors.textDisabled : DDColors.navyPrimary),
+                disabled ? DDColors.hunterGreen.withValues(alpha: 0.4) : DDColors.hunterGreen),
           ),
         );
 
       case DDButtonVariant.destructive:
         return SizedBox(
           width: fullWidth ? double.infinity : null,
-          height: height,
+          height: DDSpacing.buttonHeight,
           child: ElevatedButton(
             onPressed: disabled ? null : onPressed,
             style: ElevatedButton.styleFrom(
-              backgroundColor:
-                  disabled ? DDColors.textDisabled : DDColors.error,
-              foregroundColor: DDColors.white,
-              minimumSize: Size(0, height),
+              backgroundColor: const Color(0xFFFEF2F2),
+              foregroundColor: DDColors.error,
+              minimumSize: const Size(0, DDSpacing.buttonHeight),
+              padding: const EdgeInsets.symmetric(
+                  vertical: 14, horizontal: DDSpacing.lg),
               shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
+                side: const BorderSide(color: Color(0xFFFCA5A5)),
               ),
               elevation: 0,
             ),
-            child: _buildChild(labelStyle, DDColors.white),
-          ),
-        );
-
-      case DDButtonVariant.ghost:
-        return SizedBox(
-          width: fullWidth ? double.infinity : null,
-          height: height,
-          child: TextButton(
-            onPressed: disabled ? null : onPressed,
-            style: TextButton.styleFrom(
-              foregroundColor:
-                  disabled ? DDColors.textDisabled : DDColors.electricBlue,
-              minimumSize: Size(0, height),
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
-              ),
-            ),
             child: _buildChild(
-                labelStyle,
-                disabled ? DDColors.textDisabled : DDColors.electricBlue),
+                disabled ? DDColors.error.withValues(alpha: 0.4) : DDColors.error),
           ),
         );
     }
   }
 
-  Widget _buildChild(TextStyle style, Color color) {
+  Widget _buildChild(Color color) {
+    final style = DDTypography.label.copyWith(color: color);
     if (isLoading) {
       return SizedBox(
-        width: 20,
-        height: 20,
-        child: CircularProgressIndicator(
-          strokeWidth: 2.5,
-          color: color,
-        ),
+        width: 16,
+        height: 16,
+        child: CircularProgressIndicator(strokeWidth: 2.5, color: color),
       );
     }
     if (leading != null) {
@@ -181,10 +147,10 @@ class DDButton extends StatelessWidget {
         children: [
           leading!,
           const SizedBox(width: DDSpacing.sm),
-          Text(label, style: style.copyWith(color: color)),
+          Text(label, style: style),
         ],
       );
     }
-    return Text(label, style: style.copyWith(color: color));
+    return Text(label, style: style);
   }
 }
