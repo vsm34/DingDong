@@ -85,7 +85,7 @@ DingDong is organized into three layers: Hardware, Firmware, and Mobile App — 
 - Firebase Auth — identity provider, free tier
 - Firestore — metadata only (no video), free tier quotas sufficient
 - Firebase Cloud Messaging — push delivery, free
-- Cloud Functions for Firebase — push relay + Firestore event writer, Node.js 18, requires Blaze plan
+- Cloud Functions for Firebase — push relay + Firestore event writer, Node.js 22, requires Blaze plan
 
 **No video ever reaches the cloud.** Firestore stores only event metadata. All video stays on the microSD card.
 
@@ -109,7 +109,7 @@ DingDong is organized into three layers: Hardware, Firmware, and Mobile App — 
 | Firebase Auth | Authentication | Email/password identity | Free |
 | Firestore | Cloud DB | Event metadata, device registry | Free tier |
 | FCM | Push notifications | Motion + doorbell push to Android | Free |
-| Cloud Functions | Serverless relay | Push relay + Firestore writer, Node.js 18 | Blaze (free tier) |
+| Cloud Functions | Serverless relay | Push relay + Firestore writer, Node.js 22 | Blaze (free tier) |
 | ESP-IDF v5.x + FreeRTOS | Firmware | All device-side logic, C++ | Free |
 | cJSON | JSON parsing | Lightweight JSON for HTTP API | Free (bundled) |
 | esp_http_server | HTTP server | REST API on device | Free (bundled) |
@@ -641,7 +641,7 @@ OPTIONS preflight: return 200 immediately for all URI patterns.
 
 ## 8.1 Runtime & Endpoint
 
-- Runtime: Node.js 18
+- Runtime: Node.js 22
 - Trigger: HTTPS (POST /notify)
 - Deployed via Firebase CLI on Blaze plan
 - Project ID: dingdong-596c2
@@ -782,7 +782,7 @@ Flutter project scaffolded in mobile/. DDTheme, DDTypography, DDSpacing, all DD 
 
 ## Phase 3 — Cloud Function Relay
 
-- Implement Cloud Function in cloud/functions/ (Node.js 18) per Section 8
+- Implement Cloud Function in cloud/functions/ (Node.js 22) per Section 8
 - HMAC verification, nonce deduplication, timestamp window
 - Write event to Firestore + send FCM multicast
 - Provision secret endpoint: generate device_secret, store in Firestore devices/{id}.secret, return to app
@@ -1549,7 +1549,7 @@ serviceAccount*.json
 
 # ── Firebase ─────────────────────────────────────────────────────────────────
 google-services.json
-GoogleService-Info.plist
+GoogleService-Info.plist 
 
 # ── Node / Cloud Functions ───────────────────────────────────────────────────
 node_modules/

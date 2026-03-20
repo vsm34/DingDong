@@ -4,7 +4,7 @@
   "description": "DingDong Cloud Function relay — push notifications and secret provisioning",
   "main": "index.js",
   "engines": {
-    "node": "18"
+    "node": "22"
   },
   "scripts": {
     "lint": "eslint .",
