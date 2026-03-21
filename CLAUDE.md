@@ -28,6 +28,15 @@ Before running any idf.py commands, run from repo root:
 
 Only needed for Phase 4+ firmware sessions. Not needed for Flutter or Cloud Function sessions.
 
+## UI Fixes Needed (Session 7)
+- Logo: reduce to 3 waves each side (currently 4), make bell slightly taller/fatter
+- Login screen: increase spacing between logo and wordmark, slight overlap currently  
+- Signup screen: logo can be slightly larger
+- Events empty state: improve error state, add proper Lottie empty state animation
+- General: app feels plain, consider adding device status dashboard card on home screen
+- Consider tagline on login: "Your eyes at the door" under the DingDong wordmark
+
+
 ## Firebase Project
 Project ID: dingdong-596c2
 Region: us-central1
