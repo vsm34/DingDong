@@ -7,6 +7,7 @@ import 'core/theme/dd_spacing.dart';
 import 'core/theme/dd_theme.dart';
 import 'core/theme/dd_typography.dart';
 import 'navigation/app_router.dart';
+import 'firebase_options.dart';
 
 final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
@@ -19,7 +20,9 @@ Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
+  await Firebase.initializeApp(
+    options: DefaultFirebaseOptions.currentPlatform,
+  );
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   runApp(const ProviderScope(child: DingDongApp()));
 }
