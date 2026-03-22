@@ -172,13 +172,17 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (!isAuth && !isAuthRoute) return Routes.login;
       // Authenticated → cannot visit auth screens
       if (isAuth && isAuthRoute) return Routes.homeEvents;
-      // Authenticated + no device paired → onboarding (unless user skipped)
+
+      // Below: user is authenticated and not on an auth/onboarding route
+      // Check onboarding_skipped first — skipped users go straight to home
       final skipped =
           Hive.box('settings').get('onboarding_skipped') == true;
-      if (isAuth && !isAuthRoute && membershipAsync.valueOrNull == false &&
-          !skipped) {
-        return Routes.onboardWelcome;
-      }
+      if (skipped) return null;
+
+      // Device membership check
+      if (membershipAsync.isLoading) return null; // Stay put while loading
+      if (membershipAsync.hasError) return null;  // Fail open on error
+      if (membershipAsync.valueOrNull == false) return Routes.onboardWelcome;
 
       return null;
     },
