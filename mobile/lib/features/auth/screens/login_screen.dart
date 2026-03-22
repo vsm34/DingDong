@@ -27,8 +27,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordCtrl = TextEditingController();
   bool _isLoading = false;
 
-  static const _bgUrl =
-      'https://images.unsplash.com/photo-1600585154526-990dced4db0d?w=1200&q=80';
 
   @override
   void dispose() {
@@ -60,11 +58,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         fit: StackFit.expand,
         children: [
           // Background photo
-          Image.network(
-            _bgUrl,
+          Image.asset(
+            'assets/images/patio.jpg',
             fit: BoxFit.cover,
-            errorBuilder: (_, __, ___) =>
-                Container(color: DDColors.hunterGreenDark),
           ),
           // Dark overlay
           Container(color: Colors.black.withValues(alpha: 0.45)),
@@ -188,7 +184,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                         child: Text(
                           'Sign up',
                           style: DDTypography.bodyM.copyWith(
-                            color: DDColors.amber,
+                            color: DDColors.hunterGreen,
                             fontWeight: FontWeight.w600,
                           ),
                         ),
@@ -205,7 +201,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
             bottom: 8,
             right: 12,
             child: Text(
-              'Photo by Nathan Anderson / Unsplash',
+              'Photo by Stephan Bechert on Unsplash',
               style: DDTypography.caption.copyWith(
                 color: Colors.white.withValues(alpha: 0.45),
                 fontSize: 10,

@@ -18,6 +18,7 @@ import '../features/clips/screens/clip_player_screen.dart';
 import '../features/live_view/screens/live_view_screen.dart';
 import '../features/settings/screens/device_settings_screen.dart';
 import '../features/settings/screens/storage_manager_screen.dart';
+import '../features/settings/screens/about_screen.dart';
 import '../features/home/screens/home_settings_screen.dart';
 import '../features/debug/screens/debug_screen.dart';
 
@@ -40,6 +41,7 @@ abstract final class Routes {
   static const deviceSettings = '/settings/device';
   static const accountSettings = '/settings/account';
   static const storageManager = '/settings/storage';
+  static const about = '/settings/about';
   static const debug = '/debug';
 
   static String eventDetailPath(String eventId) => '/events/$eventId';
@@ -131,6 +133,10 @@ List<RouteBase> get _routes => [
       GoRoute(
         path: Routes.storageManager,
         builder: (_, __) => const StorageManagerScreen(),
+      ),
+      GoRoute(
+        path: Routes.about,
+        builder: (_, __) => const AboutScreen(),
       ),
       GoRoute(
         path: Routes.debug,

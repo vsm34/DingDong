@@ -140,6 +140,23 @@ class AccountSettingsScreen extends ConsumerWidget {
             ),
           ),
           const Divider(height: 0.5, thickness: 0.5, color: DDColors.borderDefault),
+          // About row
+          InkWell(
+            onTap: () => context.push(Routes.about),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: DDSpacing.xl,
+                vertical: DDSpacing.md,
+              ),
+              child: Row(
+                children: [
+                  Expanded(child: Text('About', style: DDTypography.bodyM)),
+                  const Icon(Icons.chevron_right, size: 20, color: DDColors.textMuted),
+                ],
+              ),
+            ),
+          ),
+          const Divider(height: 0.5, thickness: 0.5, color: DDColors.borderDefault),
           const SizedBox(height: DDSpacing.xl),
           Padding(
             padding: const EdgeInsets.symmetric(horizontal: DDSpacing.xl),

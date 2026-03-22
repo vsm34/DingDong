@@ -257,7 +257,8 @@ void _drawWaves(Canvas canvas, Offset center, double bellWidth, double waveSpan,
   final baseColor = isWhite ? Colors.white : DDColors.amber;
   final opacities = [1.0, 0.65, 0.30];
   final strokeWidths = [3.0, 2.5, 1.8];
-  final radiusFactors = [0.30, 0.58, 0.85];
+  // Kept proportional: outermost wave ≤ 1.5× bell width from center
+  final radiusFactors = [0.18, 0.35, 0.51];
 
   for (var i = 0; i < 3; i++) {
     final paint = Paint()

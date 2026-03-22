@@ -11,18 +11,48 @@ import '../../../components/dd_empty_state.dart';
 import '../../../components/dd_button.dart';
 import '../../../components/dd_logo.dart';
 import '../../../components/dd_loading_indicator.dart';
+import '../../../components/pulsing_dot.dart';
 import '../../../models/event_model.dart';
 import '../../../navigation/app_router.dart';
 import '../../../providers/providers.dart';
 
 /// /home/events — Events feed tab.
-/// App bar: DDLogo left, device name pill right.
-/// Dashboard card at top. Pull-to-refresh, sections by date, event rows, FAB when on LAN.
-class EventsFeedScreen extends ConsumerWidget {
+/// Dashboard card at top. Pull-to-refresh, sections by date, swipe-to-delete, FAB when on LAN.
+class EventsFeedScreen extends ConsumerStatefulWidget {
   const EventsFeedScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<EventsFeedScreen> createState() => _EventsFeedScreenState();
+}
+
+class _EventsFeedScreenState extends ConsumerState<EventsFeedScreen> {
+  final _deletedIds = <String>{};
+
+  void _dismissEvent(BuildContext context, DdEvent event) {
+    setState(() => _deletedIds.add(event.id));
+
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        SnackBar(
+          content: Text('Event deleted', style: DDTypography.bodyM.copyWith(color: DDColors.white)),
+          backgroundColor: DDColors.textPrimary,
+          behavior: SnackBarBehavior.floating,
+          shape: const StadiumBorder(),
+          duration: const Duration(seconds: 3),
+          action: SnackBarAction(
+            label: 'Undo',
+            textColor: DDColors.amber,
+            onPressed: () {
+              setState(() => _deletedIds.remove(event.id));
+            },
+          ),
+        ),
+      );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final device = ref.watch(deviceProvider);
     final eventsAsync = ref.watch(eventsProvider);
     final clipsAsync = ref.watch(clipsProvider);
@@ -66,8 +96,8 @@ class EventsFeedScreen extends ConsumerWidget {
             _DashboardCard(
               device: device,
               isLanReachable: isLanReachable,
-              todayCount: 0,
-              clipCount: 0,
+              todayCount: null,
+              clipCount: null,
               lastMotion: null,
             ),
             ...List.generate(5, (_) => const DDShimmerTile()),
@@ -81,24 +111,27 @@ class EventsFeedScreen extends ConsumerWidget {
           ),
           message: 'Failed to load events.',
         ),
-        data: (events) {
+        data: (allEvents) {
+          final events = allEvents
+              .where((e) => !_deletedIds.contains(e.id))
+              .toList();
+
           final now = DateTime.now();
           final today = DateTime(now.year, now.month, now.day);
-          final todayCount = events
-              .where((e) => !e.timestamp.isBefore(today))
-              .length;
+          final todayCount =
+              events.where((e) => !e.timestamp.isBefore(today)).length;
           final motionEvents = events
               .where((e) => e.type == EventType.motion)
               .toList()
             ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
           final lastMotion =
               motionEvents.isNotEmpty ? motionEvents.first.timestamp : null;
-          final clipCount = clipsAsync.valueOrNull?.length ?? 0;
+          final clipCount = clipsAsync.valueOrNull?.length;
 
           final dashboard = _DashboardCard(
             device: device,
             isLanReachable: isLanReachable,
-            todayCount: todayCount,
+            todayCount: events.isEmpty ? null : todayCount,
             clipCount: clipCount,
             lastMotion: lastMotion,
           );
@@ -114,7 +147,11 @@ class EventsFeedScreen extends ConsumerWidget {
           return RefreshIndicator(
             color: DDColors.hunterGreen,
             onRefresh: () => ref.refresh(eventsProvider.future),
-            child: _EventsList(events: events, header: dashboard),
+            child: _EventsList(
+              events: events,
+              header: dashboard,
+              onDismiss: (e) => _dismissEvent(context, e),
+            ),
           );
         },
       ),
@@ -125,8 +162,9 @@ class EventsFeedScreen extends ConsumerWidget {
 class _DashboardCard extends StatelessWidget {
   final dynamic device;
   final bool isLanReachable;
-  final int todayCount;
-  final int clipCount;
+  // null = loading/empty (show dashes)
+  final int? todayCount;
+  final int? clipCount;
   final DateTime? lastMotion;
 
   const _DashboardCard({
@@ -151,7 +189,9 @@ class _DashboardCard extends StatelessWidget {
               Row(
                 children: [
                   Expanded(
-                    child: Text(device.displayName, style: DDTypography.h3),
+                    child: Text(
+                        (device as dynamic).displayName as String,
+                        style: DDTypography.h3),
                   ),
                   isLanReachable
                       ? const DDChip.online()
@@ -163,13 +203,13 @@ class _DashboardCard extends StatelessWidget {
                 children: [
                   _StatBadge(
                     icon: Icons.notifications_outlined,
-                    label: '$todayCount today',
+                    label: todayCount != null ? '$todayCount today' : '— today',
                     color: DDColors.hunterGreen,
                   ),
                   const SizedBox(width: DDSpacing.sm),
                   _StatBadge(
                     icon: Icons.video_library_outlined,
-                    label: '$clipCount clips',
+                    label: clipCount != null ? '$clipCount clips' : '— clips',
                     color: DDColors.textMuted,
                   ),
                   if (lastMotion != null) ...[
@@ -221,12 +261,14 @@ class _StatBadge extends StatelessWidget {
         children: [
           Icon(icon, size: 13, color: color),
           const SizedBox(width: 4),
-          Text(label,
-              style: DDTypography.caption.copyWith(
-                color: color,
-                fontWeight: FontWeight.w600,
-                fontSize: 11,
-              )),
+          Text(
+            label,
+            style: DDTypography.caption.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+              fontSize: 11,
+            ),
+          ),
         ],
       ),
     );
@@ -251,14 +293,7 @@ class _DeviceNamePill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(
-              color: isOnline ? DDColors.online : DDColors.error,
-              shape: BoxShape.circle,
-            ),
-          ),
+          PulsingDot(isOnline: isOnline),
           const SizedBox(width: 6),
           Text(
             name,
@@ -273,8 +308,13 @@ class _DeviceNamePill extends StatelessWidget {
 class _EventsList extends StatelessWidget {
   final List<DdEvent> events;
   final Widget header;
+  final void Function(DdEvent) onDismiss;
 
-  const _EventsList({required this.events, required this.header});
+  const _EventsList({
+    required this.events,
+    required this.header,
+    required this.onDismiss,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -290,7 +330,6 @@ class _EventsList extends StatelessWidget {
       sections.last.value.add(event);
     }
 
-    // +1 for the header widget, +1 per section header, +1 per event
     final totalItems =
         1 + sections.fold<int>(0, (sum, s) => sum + 1 + s.value.length);
 
@@ -304,7 +343,9 @@ class _EventsList extends StatelessWidget {
           if (index == i) return _SectionHeader(label: section.key);
           i++;
           for (final event in section.value) {
-            if (index == i) return _EventTile(event: event);
+            if (index == i) {
+              return _EventTile(event: event, onDismiss: onDismiss);
+            }
             i++;
           }
         }
@@ -347,8 +388,9 @@ class _SectionHeader extends StatelessWidget {
 
 class _EventTile extends StatelessWidget {
   final DdEvent event;
+  final void Function(DdEvent) onDismiss;
 
-  const _EventTile({required this.event});
+  const _EventTile({required this.event, required this.onDismiss});
 
   @override
   Widget build(BuildContext context) {
@@ -357,61 +399,73 @@ class _EventTile extends StatelessWidget {
         isDoorbell ? DDColors.doorbellIconBg : DDColors.motionIconBg;
     final icon = isDoorbell ? Icons.doorbell_outlined : Icons.directions_run;
 
-    return InkWell(
-      onTap: () => context.push(Routes.eventDetailPath(event.id)),
-      child: Container(
-        decoration: BoxDecoration(
-          border: Border(
-            left: BorderSide(color: accentColor, width: 3),
+    return Dismissible(
+      key: Key(event.id),
+      direction: DismissDirection.endToStart,
+      confirmDismiss: (_) async => true,
+      onDismissed: (_) => onDismiss(event),
+      background: Container(
+        alignment: Alignment.centerRight,
+        color: DDColors.error,
+        padding: const EdgeInsets.symmetric(horizontal: DDSpacing.xl),
+        child: const Icon(Icons.delete_outline, color: DDColors.white, size: 24),
+      ),
+      child: InkWell(
+        onTap: () => context.push(Routes.eventDetailPath(event.id)),
+        child: Container(
+          decoration: BoxDecoration(
+            border: Border(
+              left: BorderSide(color: accentColor, width: 3),
+            ),
           ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(
-            horizontal: DDSpacing.xl,
-            vertical: DDSpacing.md,
-          ),
-          child: Row(
-            children: [
-              Container(
-                width: 44,
-                height: 44,
-                decoration: BoxDecoration(
-                  color: accentColor,
-                  borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
+          child: Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: DDSpacing.xl,
+              vertical: DDSpacing.md,
+            ),
+            child: Row(
+              children: [
+                Container(
+                  width: 44,
+                  height: 44,
+                  decoration: BoxDecoration(
+                    color: accentColor,
+                    borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
+                  ),
+                  child: Icon(icon, color: DDColors.white, size: 22),
                 ),
-                child: Icon(icon, color: DDColors.white, size: 22),
-              ),
-              const SizedBox(width: DDSpacing.md),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
+                const SizedBox(width: DDSpacing.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        event.typeLabel,
+                        style: DDTypography.bodyM
+                            .copyWith(fontWeight: FontWeight.w600),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        _relativeTime(event.timestamp),
+                        style: DDTypography.caption,
+                      ),
+                    ],
+                  ),
+                ),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.end,
                   children: [
-                    Text(
-                      event.typeLabel,
-                      style: DDTypography.bodyM
-                          .copyWith(fontWeight: FontWeight.w600),
-                    ),
-                    const SizedBox(height: 2),
-                    Text(
-                      _relativeTime(event.timestamp),
-                      style: DDTypography.caption,
-                    ),
+                    isDoorbell
+                        ? const DDChip.doorbell()
+                        : const DDChip.motion(),
+                    if (event.clipId != null) ...[
+                      const SizedBox(height: 4),
+                      const DDChip.clipAvailable(),
+                    ],
                   ],
                 ),
-              ),
-              Column(
-                crossAxisAlignment: CrossAxisAlignment.end,
-                children: [
-                  isDoorbell
-                      ? const DDChip.doorbell()
-                      : const DDChip.motion(),
-                  if (event.clipId != null) ...[
-                    const SizedBox(height: 4),
-                    const DDChip.clipAvailable(),
-                  ],
-                ],
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:lottie/lottie.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../core/theme/dd_spacing.dart';
 import '../../../core/theme/dd_typography.dart';
@@ -11,8 +10,8 @@ import '../../../navigation/app_router.dart';
 import '../../../providers/providers.dart';
 
 /// /onboard/success — Step 5/5
-/// Lottie checkmark (120px), device name field, "Start Monitoring" button.
-/// Subtle confetti Lottie behind content.
+/// AnimatedScale checkmark icon (0→1, 400ms, elastic), device name field,
+/// "Start Monitoring" button.
 class SuccessScreen extends ConsumerStatefulWidget {
   const SuccessScreen({super.key});
 
@@ -20,12 +19,33 @@ class SuccessScreen extends ConsumerStatefulWidget {
   ConsumerState<SuccessScreen> createState() => _SuccessScreenState();
 }
 
-class _SuccessScreenState extends ConsumerState<SuccessScreen> {
+class _SuccessScreenState extends ConsumerState<SuccessScreen>
+    with SingleTickerProviderStateMixin {
   final _nameCtrl = TextEditingController(text: 'Front Door');
+  late AnimationController _scaleCtrl;
+  late Animation<double> _scaleAnim;
+
+  @override
+  void initState() {
+    super.initState();
+    _scaleCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 400),
+    );
+    _scaleAnim = CurvedAnimation(
+      parent: _scaleCtrl,
+      curve: const ElasticOutCurve(0.6),
+    );
+    // Slight delay so screen is visible before the icon pops in
+    Future.delayed(const Duration(milliseconds: 150), () {
+      if (mounted) _scaleCtrl.forward();
+    });
+  }
 
   @override
   void dispose() {
     _nameCtrl.dispose();
+    _scaleCtrl.dispose();
     super.dispose();
   }
 
@@ -40,72 +60,55 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
     return Scaffold(
       backgroundColor: DDColors.white,
       body: SafeArea(
-        child: Stack(
-          children: [
-            // Confetti background
-            Positioned.fill(
-              child: Lottie.network(
-                'https://assets3.lottiefiles.com/packages/lf20_jbb5rvbk.json',
-                fit: BoxFit.cover,
-                errorBuilder: (_, __, ___) => const SizedBox.shrink(),
-              ),
-            ),
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: DDSpacing.xl),
-              child: Column(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: DDSpacing.xl),
+          child: Column(
+            children: [
+              const SizedBox(height: DDSpacing.md),
+              Row(
+                mainAxisAlignment: MainAxisAlignment.end,
                 children: [
-                  const SizedBox(height: DDSpacing.md),
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.end,
-                    children: [
-                      Text('5 of 5', style: DDTypography.caption),
-                    ],
-                  ),
-                  const Spacer(),
-                  SizedBox(
-                    width: 120,
-                    height: 120,
-                    child: Lottie.asset(
-                      'assets/lottie/checkmark.json',
-                      repeat: false,
-                      errorBuilder: (_, __, ___) => const Icon(
-                        Icons.check_circle,
-                        size: 80,
-                        color: DDColors.hunterGreen,
-                      ),
-                    ),
-                  ),
-                  const SizedBox(height: DDSpacing.lg),
-                  Text(
-                    'DingDong is Ready!',
-                    style: DDTypography.h2,
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: DDSpacing.sm),
-                  Text(
-                    'Give your device a name.',
-                    style: DDTypography.bodyM.copyWith(color: DDColors.textMuted),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: DDSpacing.lg),
-                  DDTextField(
-                    label: 'Device name',
-                    controller: _nameCtrl,
-                    textInputAction: TextInputAction.done,
-                    onSubmitted: (_) => _finish(),
-                    onChanged: (v) =>
-                        ref.read(onboardingProvider.notifier).setDeviceName(v),
-                  ),
-                  const Spacer(),
-                  DDButton.primary(
-                    label: 'Start Monitoring',
-                    onPressed: _finish,
-                  ),
-                  const SizedBox(height: DDSpacing.xl),
+                  Text('5 of 5', style: DDTypography.caption),
                 ],
               ),
-            ),
-          ],
+              const Spacer(),
+              ScaleTransition(
+                scale: _scaleAnim,
+                child: const Icon(
+                  Icons.check_circle_outline,
+                  size: 80,
+                  color: DDColors.hunterGreen,
+                ),
+              ),
+              const SizedBox(height: DDSpacing.lg),
+              Text(
+                'DingDong is Ready!',
+                style: DDTypography.h2,
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: DDSpacing.sm),
+              Text(
+                'Give your device a name.',
+                style: DDTypography.bodyM.copyWith(color: DDColors.textMuted),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: DDSpacing.lg),
+              DDTextField(
+                label: 'Device name',
+                controller: _nameCtrl,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _finish(),
+                onChanged: (v) =>
+                    ref.read(onboardingProvider.notifier).setDeviceName(v),
+              ),
+              const Spacer(),
+              DDButton.primary(
+                label: 'Start Monitoring',
+                onPressed: _finish,
+              ),
+              const SizedBox(height: DDSpacing.xl),
+            ],
+          ),
         ),
       ),
     );
