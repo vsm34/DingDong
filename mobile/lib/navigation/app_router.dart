@@ -1,5 +1,6 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../providers/providers.dart';
 import '../features/splash/screens/splash_screen.dart';
 import '../features/auth/screens/login_screen.dart';
@@ -171,8 +172,11 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (!isAuth && !isAuthRoute) return Routes.login;
       // Authenticated → cannot visit auth screens
       if (isAuth && isAuthRoute) return Routes.homeEvents;
-      // Authenticated + no device paired → onboarding
-      if (isAuth && !isAuthRoute && membershipAsync.valueOrNull == false) {
+      // Authenticated + no device paired → onboarding (unless user skipped)
+      final skipped =
+          Hive.box('settings').get('onboarding_skipped') == true;
+      if (isAuth && !isAuthRoute && membershipAsync.valueOrNull == false &&
+          !skipped) {
         return Routes.onboardWelcome;
       }
 

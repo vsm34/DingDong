@@ -16,34 +16,28 @@ class ConnectApScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: DDColors.white,
+      appBar: AppBar(
+        backgroundColor: DDColors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new,
+              size: 20, color: Color(0xFF355E3B)),
+          onPressed: () => context.go(Routes.onboardWelcome),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: DDSpacing.xl),
+            child: Text('2 of 5', style: DDTypography.caption),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: DDSpacing.xl),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: DDSpacing.md),
-              // Back + step row
-              Row(
-                children: [
-                  TextButton.icon(
-                    onPressed: () => context.go(Routes.onboardWelcome),
-                    icon: const Icon(
-                      Icons.arrow_back,
-                      size: 18,
-                      color: DDColors.hunterGreen,
-                    ),
-                    label: Text(
-                      'Back',
-                      style:
-                          DDTypography.bodyM.copyWith(color: DDColors.hunterGreen),
-                    ),
-                    style: TextButton.styleFrom(padding: EdgeInsets.zero),
-                  ),
-                  const Spacer(),
-                  Text('2 of 5', style: DDTypography.caption),
-                ],
-              ),
               const SizedBox(height: DDSpacing.xl),
               Text('Connect to DingDong', style: DDTypography.h2),
               const SizedBox(height: DDSpacing.sm),

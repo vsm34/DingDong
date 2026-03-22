@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -204,71 +205,143 @@ class _EventsFeedScreenState extends ConsumerState<EventsFeedScreen> {
               ),
             )
           : null,
-      body: eventsAsync.when(
-        loading: () => ListView(
-          children: [
-            _DashboardCard(
-              device: device,
-              isLanReachable: isLanReachable,
-              todayCount: null,
-              clipCount: null,
-              lastMotion: null,
-            ),
-            ...List.generate(5, (_) => const DDShimmerTile()),
-          ],
-        ),
-        error: (_, __) => DDEmptyState.error(
-          action: DDButton.secondary(
-            label: 'Retry',
-            onPressed: () => ref.refresh(eventsProvider.future),
-            fullWidth: false,
-          ),
-          message: 'Failed to load events.',
-        ),
-        data: (allEvents) {
-          final events = allEvents
-              .where((e) =>
-                  !_deletedIds.contains(e.id) &&
-                  (_filterTypes.isEmpty ||
-                      _filterTypes.contains(e.type)))
-              .toList();
+      body: StreamBuilder<User?>(
+        stream: FirebaseAuth.instance.authStateChanges(),
+        builder: (context, authSnap) {
+          final firebaseUser = authSnap.data ?? FirebaseAuth.instance.currentUser;
+          final isEmailVerified = firebaseUser?.emailVerified ?? true;
+          return Column(
+            children: [
+              if (!isEmailVerified)
+                Container(
+                  width: double.infinity,
+                  color: DDColors.amber.withValues(alpha: 0.15),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: DDSpacing.xl,
+                    vertical: DDSpacing.sm,
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.warning_amber_rounded,
+                          size: 16, color: DDColors.warning),
+                      const SizedBox(width: DDSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          'Please verify your email address.',
+                          style: DDTypography.caption
+                              .copyWith(color: DDColors.warning),
+                        ),
+                      ),
+                      TextButton(
+                        onPressed: () async {
+                          await firebaseUser?.sendEmailVerification();
+                          if (context.mounted) {
+                            ScaffoldMessenger.of(context).showSnackBar(
+                              const SnackBar(
+                                content: Text('Verification email sent.'),
+                              ),
+                            );
+                          }
+                        },
+                        style: TextButton.styleFrom(
+                          padding: EdgeInsets.zero,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                          foregroundColor: DDColors.hunterGreen,
+                        ),
+                        child: Text(
+                          'Resend',
+                          style: DDTypography.caption.copyWith(
+                            color: DDColors.hunterGreen,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              Expanded(
+                child: eventsAsync.when(
+                  loading: () => ListView(
+                    children: [
+                      _DashboardCard(
+                        device: device,
+                        isLanReachable: isLanReachable,
+                        todayCount: null,
+                        clipCount: null,
+                        lastMotion: null,
+                      ),
+                      ...List.generate(5, (_) => const DDShimmerTile()),
+                    ],
+                  ),
+                  error: (_, __) => DDEmptyState.error(
+                    action: DDButton.secondary(
+                      label: 'Retry',
+                      onPressed: () => ref.refresh(eventsProvider.future),
+                      fullWidth: false,
+                    ),
+                    message: 'Failed to load events.',
+                  ),
+                  data: (allEvents) {
+                    final events = allEvents
+                        .where((e) =>
+                            !_deletedIds.contains(e.id) &&
+                            (_filterTypes.isEmpty ||
+                                _filterTypes.contains(e.type)))
+                        .toList();
 
-          final now = DateTime.now();
-          final today = DateTime(now.year, now.month, now.day);
-          final todayCount =
-              events.where((e) => !e.timestamp.isBefore(today)).length;
-          final motionEvents = events
-              .where((e) => e.type == EventType.motion)
-              .toList()
-            ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
-          final lastMotion =
-              motionEvents.isNotEmpty ? motionEvents.first.timestamp : null;
-          final clipCount = clipsAsync.valueOrNull?.length;
+                    final now = DateTime.now();
+                    final today = DateTime(now.year, now.month, now.day);
+                    final todayCount = events
+                        .where((e) => !e.timestamp.isBefore(today))
+                        .length;
+                    final motionEvents = events
+                        .where((e) => e.type == EventType.motion)
+                        .toList()
+                      ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+                    final lastMotion = motionEvents.isNotEmpty
+                        ? motionEvents.first.timestamp
+                        : null;
+                    final clipCount = clipsAsync.valueOrNull?.length;
 
-          final dashboard = _DashboardCard(
-            device: device,
-            isLanReachable: isLanReachable,
-            todayCount: events.isEmpty ? null : todayCount,
-            clipCount: clipCount,
-            lastMotion: lastMotion,
-          );
+                    final dashboard = _DashboardCard(
+                      device: device,
+                      isLanReachable: isLanReachable,
+                      todayCount: events.isEmpty ? null : todayCount,
+                      clipCount: clipCount,
+                      lastMotion: lastMotion,
+                    );
 
-          if (events.isEmpty) {
-            return Column(
-              children: [
-                dashboard,
-                const Expanded(child: DDEmptyState.events()),
-              ],
-            );
-          }
-          return RefreshIndicator(
-            color: DDColors.hunterGreen,
-            onRefresh: () => ref.refresh(eventsProvider.future),
-            child: _EventsList(
-              events: events,
-              header: dashboard,
-              onDismiss: (e) => _dismissEvent(context, e),
-            ),
+                    if (events.isEmpty) {
+                      return Column(
+                        children: [
+                          dashboard,
+                          Expanded(
+                            child: DDEmptyState.events(
+                              action: DDButton.secondary(
+                                label: 'Add your DingDong device',
+                                onPressed: () =>
+                                    context.go(Routes.onboardWelcome),
+                                fullWidth: false,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }
+                    return RefreshIndicator(
+                      color: DDColors.hunterGreen,
+                      onRefresh: () => ref.refresh(eventsProvider.future),
+                      child: _EventsList(
+                        events: events,
+                        header: dashboard,
+                        onDismiss: (e) => _dismissEvent(context, e),
+                      ),
+                    );
+                  },
+                ),
+              ),
+            ],
           );
         },
       ),

@@ -20,7 +20,6 @@ class AccountSettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
     final user = auth.user;
-    final themeMode = ref.watch(themeModeProvider);
     final firebaseUser = FirebaseAuth.instance.currentUser;
     final isEmailVerified = firebaseUser?.emailVerified ?? true;
 
@@ -31,7 +30,7 @@ class AccountSettingsScreen extends ConsumerWidget {
         elevation: 0,
         scrolledUnderElevation: 0.5,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: Color(0xFF355E3B)),
           onPressed: () => context.pop(),
         ),
         title: Text('Account', style: DDTypography.h3),
@@ -143,38 +142,6 @@ class AccountSettingsScreen extends ConsumerWidget {
             ),
           ),
           const Divider(height: 0.5, thickness: 0.5, color: DDColors.borderDefault),
-          // Appearance row — tappable
-          InkWell(
-            onTap: () => _pickTheme(context, ref, themeMode),
-            child: Padding(
-              padding: const EdgeInsets.symmetric(
-                horizontal: DDSpacing.xl,
-                vertical: DDSpacing.md,
-              ),
-              child: Row(
-                children: [
-                  Expanded(
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      children: [
-                        Text(
-                          'Appearance',
-                          style: DDTypography.caption
-                              .copyWith(color: DDColors.textMuted),
-                        ),
-                        const SizedBox(height: 2),
-                        Text(_themeModeLabel(themeMode),
-                            style: DDTypography.bodyM),
-                      ],
-                    ),
-                  ),
-                  const Icon(Icons.chevron_right,
-                      size: 20, color: DDColors.textMuted),
-                ],
-              ),
-            ),
-          ),
-          const Divider(height: 0.5, thickness: 0.5, color: DDColors.borderDefault),
           // About row
           InkWell(
             onTap: () => context.push(Routes.about),
@@ -216,17 +183,6 @@ class AccountSettingsScreen extends ConsumerWidget {
     );
   }
 
-  static String _themeModeLabel(ThemeMode mode) {
-    switch (mode) {
-      case ThemeMode.system:
-        return 'System default';
-      case ThemeMode.light:
-        return 'Light';
-      case ThemeMode.dark:
-        return 'Dark';
-    }
-  }
-
   void _editDisplayName(
       BuildContext context, WidgetRef ref, String current) {
     final ctrl = TextEditingController(text: current);
@@ -262,29 +218,4 @@ class AccountSettingsScreen extends ConsumerWidget {
     );
   }
 
-  void _pickTheme(
-      BuildContext context, WidgetRef ref, ThemeMode current) {
-    final modes = [ThemeMode.system, ThemeMode.light, ThemeMode.dark];
-    DDBottomSheet.show(
-      context: context,
-      title: 'Appearance',
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: modes
-            .map(
-              (mode) => ListTile(
-                title: Text(_themeModeLabel(mode), style: DDTypography.bodyM),
-                trailing: mode == current
-                    ? const Icon(Icons.check, color: DDColors.hunterGreen)
-                    : null,
-                onTap: () {
-                  ref.read(themeModeProvider.notifier).state = mode;
-                  Navigator.of(context).pop();
-                },
-              ),
-            )
-            .toList(),
-      ),
-    );
-  }
 }

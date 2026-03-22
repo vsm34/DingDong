@@ -58,7 +58,7 @@ class _StorageManagerScreenState
         elevation: 0,
         scrolledUnderElevation: 0.5,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: Color(0xFF355E3B)),
           onPressed: () => context.pop(),
         ),
         title: Text('Storage', style: DDTypography.h3),

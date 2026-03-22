@@ -80,7 +80,7 @@ class _ClipPlayerScreenState extends ConsumerState<ClipPlayerScreen> {
               children: [
                 IconButton(
                   onPressed: () => context.pop(),
-                  icon: const Icon(Icons.arrow_back, color: Colors.white),
+                  icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: Colors.white),
                 ),
                 const Spacer(),
                 if (_clip != null) ...[

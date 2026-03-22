@@ -4,6 +4,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../core/theme/dd_spacing.dart';
 import '../../../core/theme/dd_typography.dart';
@@ -26,31 +27,93 @@ const _kLatestFwVersion = '1.0.0';
 class DeviceSettingsScreen extends ConsumerWidget {
   const DeviceSettingsScreen({super.key});
 
+  static const _kCachedKey = 'last_device_settings';
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final settingsAsync = ref.watch(settingsProvider);
     final device = ref.watch(deviceProvider);
+    final box = Hive.box('settings');
 
-    return Scaffold(
+    // Cache successful loads
+    settingsAsync.whenData((s) {
+      box.put(_kCachedKey, s.toJson());
+    });
+
+    final appBar = AppBar(
       backgroundColor: DDColors.white,
-      appBar: AppBar(
-        backgroundColor: DDColors.white,
-        elevation: 0,
-        scrolledUnderElevation: 0.5,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
-          onPressed: () => context.pop(),
-        ),
-        title: Text('Device Settings', style: DDTypography.h3),
+      elevation: 0,
+      scrolledUnderElevation: 0.5,
+      leading: IconButton(
+        icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: Color(0xFF355E3B)),
+        onPressed: () => context.pop(),
       ),
-      body: settingsAsync.when(
-        loading: () =>
-            const Center(child: DDLoadingIndicator(size: DDLoadingSize.md)),
-        error: (_, __) => Center(
-          child:
-              Text('Could not load settings', style: DDTypography.bodyM),
-        ),
-        data: (settings) => _SettingsBody(device: device, settings: settings),
+      title: Text('Device Settings', style: DDTypography.h3),
+    );
+
+    return settingsAsync.when(
+      loading: () => Scaffold(
+        backgroundColor: DDColors.white,
+        appBar: appBar,
+        body: const Center(child: DDLoadingIndicator(size: DDLoadingSize.md)),
+      ),
+      error: (_, __) {
+        final raw = box.get(_kCachedKey);
+        if (raw != null) {
+          final cached = DeviceSettings.fromJson(
+              Map<String, dynamic>.from(raw as Map));
+          return Scaffold(
+            backgroundColor: DDColors.white,
+            appBar: appBar,
+            body: Column(
+              children: [
+                _OfflineBanner(),
+                Expanded(
+                  child: _SettingsBody(
+                      device: device, settings: cached, isOffline: true),
+                ),
+              ],
+            ),
+          );
+        }
+        return Scaffold(
+          backgroundColor: DDColors.white,
+          appBar: appBar,
+          body: Center(
+            child: Text('Could not load settings', style: DDTypography.bodyM),
+          ),
+        );
+      },
+      data: (settings) => Scaffold(
+        backgroundColor: DDColors.white,
+        appBar: appBar,
+        body: _SettingsBody(device: device, settings: settings, isOffline: false),
+      ),
+    );
+  }
+}
+
+class _OfflineBanner extends StatelessWidget {
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: double.infinity,
+      color: DDColors.amber.withValues(alpha: 0.15),
+      padding: const EdgeInsets.symmetric(
+        horizontal: DDSpacing.xl,
+        vertical: DDSpacing.sm,
+      ),
+      child: Row(
+        children: [
+          const Icon(Icons.wifi_off, size: 16, color: DDColors.warning),
+          const SizedBox(width: DDSpacing.sm),
+          Expanded(
+            child: Text(
+              'Device unreachable — showing last known settings. Changes will sync when reconnected.',
+              style: DDTypography.caption.copyWith(color: DDColors.warning),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -59,8 +122,13 @@ class DeviceSettingsScreen extends ConsumerWidget {
 class _SettingsBody extends ConsumerStatefulWidget {
   final DdDevice device;
   final DeviceSettings settings;
+  final bool isOffline;
 
-  const _SettingsBody({required this.device, required this.settings});
+  const _SettingsBody({
+    required this.device,
+    required this.settings,
+    required this.isOffline,
+  });
 
   @override
   ConsumerState<_SettingsBody> createState() => _SettingsBodyState();
@@ -68,6 +136,7 @@ class _SettingsBody extends ConsumerStatefulWidget {
 
 class _SettingsBodyState extends ConsumerState<_SettingsBody> {
   late DeviceSettings _local;
+  bool _previousLan = false;
 
   @override
   void initState() {
@@ -75,8 +144,39 @@ class _SettingsBodyState extends ConsumerState<_SettingsBody> {
     _local = widget.settings;
   }
 
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    final isLan = ref.read(lanReachableProvider);
+    // Sync pending settings when LAN comes back
+    if (isLan && !_previousLan && widget.isOffline) {
+      _syncPending();
+    }
+    _previousLan = isLan;
+  }
+
+  Future<void> _syncPending() async {
+    final box = Hive.box('settings');
+    final raw = box.get('pending_settings');
+    if (raw == null) return;
+    final pending =
+        DeviceSettings.fromJson(Map<String, dynamic>.from(raw as Map));
+    try {
+      await ref.read(settingsProvider.notifier).applyUpdate(pending);
+      box.delete('pending_settings');
+      if (mounted) DDToast.success(context, 'Pending settings synced.');
+    } catch (_) {
+      // Will retry next time LAN reconnects
+    }
+  }
+
   Future<void> _save(DeviceSettings updated) async {
     setState(() => _local = updated);
+    if (widget.isOffline) {
+      Hive.box('settings').put('pending_settings', updated.toJson());
+      if (mounted) DDToast.success(context, 'Saved — will sync when online.');
+      return;
+    }
     try {
       await ref.read(settingsProvider.notifier).applyUpdate(updated);
       if (mounted) DDToast.success(context, 'Settings saved');

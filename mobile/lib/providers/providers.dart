@@ -3,7 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import 'package:flutter/material.dart' show ThemeMode, TimeOfDay;
+import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/clip_model.dart';
@@ -363,10 +363,6 @@ class LanReachabilityNotifier extends Notifier<bool> {
 final lanReachableProvider =
     NotifierProvider<LanReachabilityNotifier, bool>(
         LanReachabilityNotifier.new);
-
-// ─── Theme mode ───────────────────────────────────────────────────────────────
-
-final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
 
 // ─── Quiet hours ──────────────────────────────────────────────────────────────
 

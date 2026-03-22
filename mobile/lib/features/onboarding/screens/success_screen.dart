@@ -59,18 +59,27 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor: DDColors.white,
+      appBar: AppBar(
+        backgroundColor: DDColors.white,
+        elevation: 0,
+        scrolledUnderElevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new,
+              size: 20, color: Color(0xFF355E3B)),
+          onPressed: () => context.go(Routes.onboardConfirming),
+        ),
+        actions: [
+          Padding(
+            padding: const EdgeInsets.only(right: DDSpacing.xl),
+            child: Text('5 of 5', style: DDTypography.caption),
+          ),
+        ],
+      ),
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.symmetric(horizontal: DDSpacing.xl),
           child: Column(
             children: [
-              const SizedBox(height: DDSpacing.md),
-              Row(
-                mainAxisAlignment: MainAxisAlignment.end,
-                children: [
-                  Text('5 of 5', style: DDTypography.caption),
-                ],
-              ),
               const Spacer(),
               ScaleTransition(
                 scale: _scaleAnim,

@@ -106,12 +106,9 @@ class _DingDongAppState extends ConsumerState<DingDongApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
-    final themeMode = ref.watch(themeModeProvider);
     return MaterialApp.router(
       title: 'DingDong',
       theme: DDTheme.light,
-      darkTheme: DDTheme.dark,
-      themeMode: themeMode,
       routerConfig: router,
       scaffoldMessengerKey: _scaffoldMessengerKey,
       debugShowCheckedModeBanner: false,

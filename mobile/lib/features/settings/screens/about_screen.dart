@@ -19,7 +19,7 @@ class AboutScreen extends StatelessWidget {
         elevation: 0,
         scrolledUnderElevation: 0.5,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          icon: const Icon(Icons.arrow_back_ios_new, size: 20, color: Color(0xFF355E3B)),
           onPressed: () => context.pop(),
         ),
         title: Text('About', style: DDTypography.h3),

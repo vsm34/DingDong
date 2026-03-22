@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../core/theme/dd_spacing.dart';
 import '../../../core/theme/dd_typography.dart';
@@ -68,7 +69,21 @@ class WelcomeScreen extends StatelessWidget {
                       label: 'Get Started',
                       onPressed: () => context.go(Routes.onboardConnectAp),
                     ),
-                    const SizedBox(height: DDSpacing.lg),
+                    const SizedBox(height: DDSpacing.md),
+                    Center(
+                      child: TextButton(
+                        onPressed: () {
+                          Hive.box('settings').put('onboarding_skipped', true);
+                          context.go(Routes.homeEvents);
+                        },
+                        child: Text(
+                          'Skip for now',
+                          style: DDTypography.bodyM
+                              .copyWith(color: DDColors.textMuted),
+                        ),
+                      ),
+                    ),
+                    const SizedBox(height: DDSpacing.md),
                     const _StepDots(total: 5, current: 0),
                     const SizedBox(height: DDSpacing.md),
                   ],

@@ -54,41 +54,52 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   void _showPasswordReset(BuildContext context) {
     final emailCtrl =
         TextEditingController(text: _emailCtrl.text.trim());
+    var isSending = false;
     DDBottomSheet.show(
       context: context,
       title: 'Reset Password',
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          DDTextField(
-            label: 'Email',
-            hint: 'you@example.com',
-            controller: emailCtrl,
-            keyboardType: TextInputType.emailAddress,
-            textInputAction: TextInputAction.done,
-          ),
-          const SizedBox(height: DDSpacing.lg),
-          DDButton.primary(
-            label: 'Send Reset Email',
-            onPressed: () async {
-              final email = emailCtrl.text.trim();
-              if (email.isEmpty) return;
-              Navigator.of(context).pop();
-              try {
-                await ref
-                    .read(authProvider.notifier)
-                    .sendPasswordReset(email);
-                if (context.mounted) {
-                  DDToast.success(context, 'Password reset email sent.');
-                }
-              } catch (_) {
-                if (context.mounted) {
-                  DDToast.error(context, 'Failed to send reset email.');
-                }
-              }
-            },
-          ),
-        ],
+      child: StatefulBuilder(
+        builder: (ctx, setSS) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              DDTextField(
+                label: 'Email',
+                hint: 'you@example.com',
+                controller: emailCtrl,
+                keyboardType: TextInputType.emailAddress,
+                textInputAction: TextInputAction.done,
+              ),
+              const SizedBox(height: DDSpacing.lg),
+              DDButton.primary(
+                label: 'Send Reset Link',
+                isLoading: isSending,
+                onPressed: isSending
+                    ? null
+                    : () async {
+                        final email = emailCtrl.text.trim();
+                        if (email.isEmpty) return;
+                        setSS(() => isSending = true);
+                        try {
+                          await ref
+                              .read(authProvider.notifier)
+                              .sendPasswordReset(email);
+                          if (ctx.mounted) Navigator.of(ctx).pop();
+                          if (context.mounted) {
+                            DDToast.success(
+                                context, 'Password reset email sent.');
+                          }
+                        } catch (_) {
+                          setSS(() => isSending = false);
+                          if (ctx.mounted) {
+                            DDToast.error(ctx, 'Failed to send reset email.');
+                          }
+                        }
+                      },
+              ),
+            ],
+          );
+        },
       ),
     );
   }
@@ -129,14 +140,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   const SizedBox(height: 40),
                   // Frosted glass card
                   ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
+                    borderRadius: BorderRadius.circular(16),
                     child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 2, sigmaY: 2),
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
                       child: Container(
                         padding: const EdgeInsets.all(24),
                         decoration: BoxDecoration(
-                          color: Colors.white.withValues(alpha: 0.92),
-                          borderRadius: BorderRadius.circular(20),
+                          color: Colors.white.withValues(alpha: 0.75),
+                          borderRadius: BorderRadius.circular(16),
                         ),
                         child: Form(
                           key: _formKey,
