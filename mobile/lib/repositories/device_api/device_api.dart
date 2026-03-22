@@ -30,4 +30,7 @@ abstract class DeviceApi {
   /// Returns the MJPEG stream URL for the live view tab
   /// Format: http://dingdong-<deviceId>.local/api/v1/stream
   String getStreamUrl();
+
+  /// Returns auth headers for direct HTTP calls (e.g., MJPEG stream)
+  Future<Map<String, String>> getRequestHeaders();
 }

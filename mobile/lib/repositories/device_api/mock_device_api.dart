@@ -69,6 +69,9 @@ class MockDeviceApi implements DeviceApi {
     return 'http://dingdong-dd-001.local/api/v1/stream';
   }
 
+  @override
+  Future<Map<String, String>> getRequestHeaders() async => {};
+
   static Future<void> _fakeDelay({int ms = 600}) =>
       Future.delayed(Duration(milliseconds: ms));
 

@@ -19,6 +19,7 @@ class HomeSettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
     final device = ref.watch(deviceProvider);
+    final isLanReachable = ref.watch(lanReachableProvider);
 
     return Scaffold(
       backgroundColor: DDColors.white,
@@ -84,7 +85,7 @@ class HomeSettingsScreen extends ConsumerWidget {
                     Expanded(
                       child: Text(device.displayName, style: DDTypography.h3),
                     ),
-                    device.isOnline
+                    isLanReachable
                         ? const DDChip.online()
                         : const DDChip.offline(),
                   ],

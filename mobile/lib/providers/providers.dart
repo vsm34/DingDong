@@ -1,19 +1,27 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:async';
+
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
-import '../repositories/device_api/device_api.dart';
-import '../repositories/device_api/mock_device_api.dart';
-import '../repositories/events/events_repo.dart';
-import '../repositories/events/firestore_events_repo.dart';
-import '../models/event_model.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
 import '../models/clip_model.dart';
 import '../models/device_model.dart';
 import '../models/device_settings_model.dart';
+import '../models/event_model.dart';
+import '../repositories/device_api/device_api.dart';
+import '../repositories/device_api/real_device_api.dart';
+import '../repositories/events/events_repo.dart';
+import '../repositories/events/firestore_events_repo.dart';
 
 // ─── Repository providers ────────────────────────────────────────────────────
 
-final deviceApiProvider = Provider<DeviceApi>((ref) => MockDeviceApi());
+/// Device API provider — uses the real ESP32 HTTP API.
+/// Rebuilds automatically if deviceProvider.deviceId changes.
+final deviceApiProvider = Provider<DeviceApi>((ref) {
+  final device = ref.watch(deviceProvider);
+  return RealDeviceApi(deviceId: device.deviceId);
+});
 
 final eventsRepoProvider = Provider<EventsRepo>((ref) => FirestoreEventsRepo());
 
@@ -144,18 +152,18 @@ final authProvider = NotifierProvider<AuthNotifier, AuthState>(AuthNotifier.new)
 
 // ─── Device ──────────────────────────────────────────────────────────────────
 
-final mockDevice = DdDevice(
+final _defaultDevice = DdDevice(
   deviceId: 'dd-001',
   displayName: 'Front Door',
   ownerId: 'mock-uid-001',
   createdAt: DateTime.now().subtract(const Duration(days: 14)),
-  lastSeen: DateTime.now().subtract(const Duration(minutes: 1)),
-  firmwareVersion: '0.9.2',
+  lastSeen: null,
+  firmwareVersion: null,
   notifyEnabled: true,
   motionEnabled: true,
 );
 
-final deviceProvider = StateProvider<DdDevice>((ref) => mockDevice);
+final deviceProvider = StateProvider<DdDevice>((ref) => _defaultDevice);
 
 final deviceHealthProvider = FutureProvider<HealthResponse>((ref) async {
   final api = ref.watch(deviceApiProvider);
@@ -283,6 +291,68 @@ final onboardingProvider =
     NotifierProvider<OnboardingNotifier, OnboardingState>(
         OnboardingNotifier.new);
 
-// ─── LAN reachability (mock: always reachable in Phase 1) ───────────────────
+// ─── LAN reachability ────────────────────────────────────────────────────────
+//
+// Polls GET /health every 30 seconds.
+// On success: marks device online, updates deviceProvider.lastSeen, writes
+// lastSeen to Firestore.
+// On failure / timeout: marks device offline.
+// Call checkNow() to trigger an immediate probe (e.g., on app foreground).
 
-final lanReachableProvider = StateProvider<bool>((ref) => true);
+class LanReachabilityNotifier extends Notifier<bool> {
+  Timer? _timer;
+
+  @override
+  bool build() {
+    _timer?.cancel();
+    _timer = Timer.periodic(
+      const Duration(seconds: 30),
+      (_) => _check(),
+    );
+    // Run an immediate check without blocking build()
+    Future.microtask(_check);
+    ref.onDispose(() => _timer?.cancel());
+    return false;
+  }
+
+  /// Trigger an immediate LAN probe. Safe to call from WidgetsBindingObserver.
+  Future<void> checkNow() => _check();
+
+  /// Debug/testing only — force override the reachability state.
+  // ignore: avoid_positional_boolean_parameters
+  void debugOverride(bool value) => state = value;
+
+  Future<void> _check() async {
+    try {
+      final api = ref.read(deviceApiProvider);
+      final health =
+          await api.getHealth().timeout(const Duration(seconds: 5));
+      state = health.ok;
+      if (health.ok) {
+        final now = DateTime.now();
+        final device = ref.read(deviceProvider);
+        // Update lastSeen + firmwareVersion in local state
+        ref.read(deviceProvider.notifier).state = device.copyWith(
+          lastSeen: now,
+          firmwareVersion: health.fwVersion,
+        );
+        // Persist lastSeen to Firestore (non-fatal)
+        _writeFirestoreLastSeen(device.deviceId);
+      }
+    } catch (_) {
+      state = false;
+    }
+  }
+
+  void _writeFirestoreLastSeen(String deviceId) {
+    FirebaseFirestore.instance
+        .collection('devices')
+        .doc(deviceId)
+        .update({'lastSeen': FieldValue.serverTimestamp()})
+        .ignore();
+  }
+}
+
+final lanReachableProvider =
+    NotifierProvider<LanReachabilityNotifier, bool>(
+        LanReachabilityNotifier.new);

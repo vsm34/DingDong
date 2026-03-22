@@ -76,6 +76,9 @@ class _SettingsBodyState extends ConsumerState<_SettingsBody> {
 
   @override
   Widget build(BuildContext context) {
+    final isLanReachable = ref.watch(lanReachableProvider);
+    final device = ref.watch(deviceProvider);
+
     return ListView(
       padding: const EdgeInsets.all(DDSpacing.xl),
       children: [
@@ -87,15 +90,20 @@ class _SettingsBodyState extends ConsumerState<_SettingsBody> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(widget.device.displayName, style: DDTypography.h3),
+                    Text(device.displayName, style: DDTypography.h3),
                     Text(
-                      'v${widget.device.firmwareVersion ?? '—'}',
+                      'v${device.firmwareVersion ?? '—'}',
                       style: DDTypography.caption,
+                    ),
+                    Text(
+                      'Last seen ${device.lastSeenLabel}',
+                      style:
+                          DDTypography.caption.copyWith(color: DDColors.textMuted),
                     ),
                   ],
                 ),
               ),
-              widget.device.isOnline
+              isLanReachable
                   ? const DDChip.online()
                   : const DDChip.offline(),
             ],

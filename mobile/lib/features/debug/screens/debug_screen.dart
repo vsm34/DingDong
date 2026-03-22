@@ -93,7 +93,7 @@ class DebugScreen extends ConsumerWidget {
                 ? 'Simulate Going Off-LAN'
                 : 'Simulate Going On-LAN',
             onPressed: () {
-              ref.read(lanReachableProvider.notifier).state = !isLanReachable;
+              ref.read(lanReachableProvider.notifier).debugOverride(!isLanReachable);
               DDToast.info(
                 context,
                 'LAN: ${!isLanReachable ? "reachable" : "unreachable"}',
