@@ -1,3 +1,6 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:dio/dio.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,11 +12,14 @@ import '../../../components/dd_button.dart';
 import '../../../components/dd_card.dart';
 import '../../../components/dd_chip.dart';
 import '../../../components/dd_loading_indicator.dart';
+import '../../../components/dd_text_field.dart';
 import '../../../components/dd_toast.dart';
 import '../../../models/device_model.dart';
 import '../../../models/device_settings_model.dart';
 import '../../../navigation/app_router.dart';
 import '../../../providers/providers.dart';
+
+const _kLatestFwVersion = '1.0.0';
 
 /// /settings/device — Device settings.
 /// Device status card, Motion, Notifications, Clips, Quiet Hours, Storage, Danger Zone.
@@ -31,6 +37,10 @@ class DeviceSettingsScreen extends ConsumerWidget {
         backgroundColor: DDColors.white,
         elevation: 0,
         scrolledUnderElevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          onPressed: () => context.pop(),
+        ),
         title: Text('Device Settings', style: DDTypography.h3),
       ),
       body: settingsAsync.when(
@@ -83,33 +93,85 @@ class _SettingsBodyState extends ConsumerState<_SettingsBody> {
     final qh = qhAsync.valueOrNull ?? const QuietHoursState();
     final clipCount = ref.watch(clipsProvider).valueOrNull?.length ?? 0;
 
+    final signalStrength = ref.watch(signalStrengthProvider);
+    final msAsync = ref.watch(motionScheduleProvider);
+    final ms = msAsync.valueOrNull ?? const MotionScheduleState();
+    final hasUpdate = device.firmwareVersion != null &&
+        device.firmwareVersion != _kLatestFwVersion;
+
     return ListView(
       padding: const EdgeInsets.all(DDSpacing.xl),
       children: [
         // Device status card
         DDCard(
-          child: Row(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(device.displayName, style: DDTypography.h3),
-                    Text(
-                      'v${device.firmwareVersion ?? '—'}',
-                      style: DDTypography.caption,
+              Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Text(device.displayName, style: DDTypography.h3),
+                            const SizedBox(width: DDSpacing.sm),
+                            GestureDetector(
+                              onTap: () => _renameDevice(context),
+                              child: const Icon(Icons.edit_outlined,
+                                  size: 16, color: DDColors.textMuted),
+                            ),
+                          ],
+                        ),
+                        Row(
+                          children: [
+                            Text(
+                              'v${device.firmwareVersion ?? '—'}',
+                              style: DDTypography.caption,
+                            ),
+                            if (hasUpdate) ...[
+                              const SizedBox(width: DDSpacing.xs),
+                              Container(
+                                padding: const EdgeInsets.symmetric(
+                                    horizontal: 6, vertical: 2),
+                                decoration: BoxDecoration(
+                                  color: DDColors.amber.withValues(alpha: 0.15),
+                                  borderRadius: BorderRadius.circular(
+                                      DDSpacing.radiusFull),
+                                ),
+                                child: Text(
+                                  'Update available',
+                                  style: DDTypography.caption.copyWith(
+                                    color: DDColors.warning,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 10,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ],
+                        ),
+                        Text(
+                          'Last seen ${device.lastSeenLabel}',
+                          style: DDTypography.caption
+                              .copyWith(color: DDColors.textMuted),
+                        ),
+                        if (signalStrength != null) ...[
+                          Text(
+                            'Signal: ${_signalLabel(signalStrength)} ($signalStrength dBm)',
+                            style: DDTypography.caption
+                                .copyWith(color: DDColors.textMuted),
+                          ),
+                        ],
+                      ],
                     ),
-                    Text(
-                      'Last seen ${device.lastSeenLabel}',
-                      style:
-                          DDTypography.caption.copyWith(color: DDColors.textMuted),
-                    ),
-                  ],
-                ),
+                  ),
+                  isLanReachable
+                      ? const DDChip.online()
+                      : const DDChip.offline(),
+                ],
               ),
-              isLanReachable
-                  ? const DDChip.online()
-                  : const DDChip.offline(),
             ],
           ),
         ),
@@ -144,13 +206,59 @@ class _SettingsBodyState extends ConsumerState<_SettingsBody> {
           ),
         ),
         const SizedBox(height: DDSpacing.lg),
+        // MOTION SCHEDULE
+        const _SectionLabel('MOTION SCHEDULE'),
+        DDCard(
+          child: Column(
+            children: [
+              _ToggleRow(
+                label: 'Scheduled Detection',
+                value: ms.enabled,
+                onChanged: (v) => ref
+                    .read(motionScheduleProvider.notifier)
+                    .save(ms.copyWith(enabled: v)),
+              ),
+              if (ms.enabled) ...[
+                const Divider(
+                    height: 0.5, thickness: 0.5, color: DDColors.borderDefault),
+                _TapRow(
+                  label: 'Active from',
+                  trailing: Text(ms.start.format(context),
+                      style: DDTypography.bodyM),
+                  onTap: () => _pickScheduleTime(context, ms, isStart: true),
+                ),
+                const Divider(
+                    height: 0.5, thickness: 0.5, color: DDColors.borderDefault),
+                _TapRow(
+                  label: 'Active until',
+                  trailing: Text(ms.end.format(context),
+                      style: DDTypography.bodyM),
+                  onTap: () => _pickScheduleTime(context, ms, isStart: false),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: DDSpacing.lg),
         // NOTIFICATIONS
         const _SectionLabel('NOTIFICATIONS'),
         DDCard(
-          child: _ToggleRow(
-            label: 'Push Notifications',
-            value: _local.notifyEnabled,
-            onChanged: (v) => _save(_local.copyWith(notifyEnabled: v)),
+          child: Column(
+            children: [
+              _ToggleRow(
+                label: 'Push Notifications',
+                value: _local.notifyEnabled,
+                onChanged: (v) => _save(_local.copyWith(notifyEnabled: v)),
+              ),
+              const Divider(
+                  height: 0.5, thickness: 0.5, color: DDColors.borderDefault),
+              _TapRow(
+                label: 'Test Notification',
+                trailing: const Icon(Icons.send_outlined,
+                    size: 18, color: DDColors.textMuted),
+                onTap: () => _sendTestNotification(context),
+              ),
+            ],
           ),
         ),
         const SizedBox(height: DDSpacing.lg),
@@ -242,6 +350,97 @@ class _SettingsBodyState extends ConsumerState<_SettingsBody> {
         ),
       ],
     );
+  }
+
+  static String _signalLabel(int rssi) {
+    if (rssi >= -50) return 'Excellent';
+    if (rssi >= -70) return 'Good';
+    if (rssi >= -80) return 'Fair';
+    return 'Poor';
+  }
+
+  void _renameDevice(BuildContext context) {
+    final ctrl =
+        TextEditingController(text: ref.read(deviceProvider).displayName);
+    DDBottomSheet.show(
+      context: context,
+      title: 'Rename Device',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DDTextField(
+            label: 'Device Name',
+            controller: ctrl,
+            autofocus: true,
+            textInputAction: TextInputAction.done,
+          ),
+          const SizedBox(height: DDSpacing.lg),
+          DDButton.primary(
+            label: 'Save',
+            onPressed: () async {
+              final name = ctrl.text.trim();
+              if (name.isEmpty) {
+                Navigator.of(context).pop();
+                return;
+              }
+              final device = ref.read(deviceProvider);
+              ref.read(deviceProvider.notifier).state =
+                  device.copyWith(displayName: name);
+              Navigator.of(context).pop();
+              try {
+                await FirebaseFirestore.instance
+                    .collection('devices')
+                    .doc(device.deviceId)
+                    .update({'displayName': name});
+              } catch (_) {
+                // Non-fatal
+              }
+              if (context.mounted) DDToast.success(context, 'Device renamed.');
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Future<void> _sendTestNotification(BuildContext context) async {
+    final device = ref.read(deviceProvider);
+    try {
+      final token =
+          await FirebaseAuth.instance.currentUser?.getIdToken();
+      if (token == null) {
+        if (context.mounted) DDToast.error(context, 'Not signed in.');
+        return;
+      }
+      final dio = Dio();
+      await dio.post(
+        'https://us-central1-dingdong-596c2.cloudfunctions.net/testNotify',
+        data: {'deviceId': device.deviceId},
+        options: Options(
+          headers: {'Authorization': 'Bearer $token'},
+        ),
+      );
+      if (context.mounted) DDToast.success(context, 'Test notification sent!');
+    } catch (_) {
+      if (context.mounted) DDToast.error(context, 'Failed to send test notification.');
+    }
+  }
+
+  Future<void> _pickScheduleTime(
+      BuildContext context, MotionScheduleState ms,
+      {required bool isStart}) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: isStart ? ms.start : ms.end,
+    );
+    if (picked != null) {
+      ref.read(motionScheduleProvider.notifier).save(
+            ms.copyWith(
+              start: isStart ? picked : ms.start,
+              end: isStart ? ms.end : picked,
+            ),
+          );
+    }
   }
 
   void _showClipLengthPicker(BuildContext context) {
@@ -361,6 +560,13 @@ class _SliderRow extends StatelessWidget {
     required this.onChangeEnd,
   });
 
+  static String _sensitivityLabel(double value, double min, double max) {
+    final pct = (value - min) / (max - min);
+    if (pct < 0.34) return 'Low';
+    if (pct < 0.67) return 'Medium';
+    return 'High';
+  }
+
   @override
   Widget build(BuildContext context) {
     return Padding(
@@ -372,7 +578,13 @@ class _SliderRow extends StatelessWidget {
           Row(
             children: [
               Expanded(child: Text(label, style: DDTypography.bodyM)),
-              Text('${value.round()}', style: DDTypography.label),
+              Text(
+                _sensitivityLabel(value, min, max),
+                style: DDTypography.label.copyWith(
+                  color: DDColors.hunterGreen,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
             ],
           ),
           SliderTheme(
@@ -388,6 +600,20 @@ class _SliderRow extends StatelessWidget {
               onChanged: onChanged,
               onChangeEnd: onChangeEnd,
             ),
+          ),
+          Row(
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Text('Low',
+                  style: DDTypography.caption
+                      .copyWith(color: DDColors.textMuted, fontSize: 10)),
+              Text('Medium',
+                  style: DDTypography.caption
+                      .copyWith(color: DDColors.textMuted, fontSize: 10)),
+              Text('High',
+                  style: DDTypography.caption
+                      .copyWith(color: DDColors.textMuted, fontSize: 10)),
+            ],
           ),
         ],
       ),

@@ -1,6 +1,9 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../components/dd_logo.dart';
 import '../../../navigation/app_router.dart';
@@ -42,12 +45,24 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   Future<void> _navigate() async {
     await Future.delayed(const Duration(milliseconds: 1800));
     if (!mounted) return;
+    await _requestPermissionsIfNeeded();
+    if (!mounted) return;
     final auth = ref.read(authProvider);
     if (auth.isAuthenticated) {
       context.go(Routes.homeEvents);
     } else {
       context.go(Routes.login);
     }
+  }
+
+  Future<void> _requestPermissionsIfNeeded() async {
+    if (kIsWeb) return;
+    final box = Hive.box('settings');
+    final alreadyRequested =
+        box.get('permissions_requested', defaultValue: false) as bool;
+    if (alreadyRequested) return;
+    await Permission.notification.request();
+    await box.put('permissions_requested', true);
   }
 
   @override

@@ -11,6 +11,7 @@ import '../../../components/dd_toast.dart';
 import '../../../components/dd_logo.dart';
 import '../../../navigation/app_router.dart';
 import '../../../providers/providers.dart';
+import '../../../components/dd_bottom_sheet.dart';
 
 /// /login — Full-bleed Unsplash background, dark overlay, floating frosted card.
 /// White inverted logo + tagline above card. Unsplash credit at bottom.
@@ -50,6 +51,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  void _showPasswordReset(BuildContext context) {
+    final emailCtrl =
+        TextEditingController(text: _emailCtrl.text.trim());
+    DDBottomSheet.show(
+      context: context,
+      title: 'Reset Password',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          DDTextField(
+            label: 'Email',
+            hint: 'you@example.com',
+            controller: emailCtrl,
+            keyboardType: TextInputType.emailAddress,
+            textInputAction: TextInputAction.done,
+          ),
+          const SizedBox(height: DDSpacing.lg),
+          DDButton.primary(
+            label: 'Send Reset Email',
+            onPressed: () async {
+              final email = emailCtrl.text.trim();
+              if (email.isEmpty) return;
+              Navigator.of(context).pop();
+              try {
+                await ref
+                    .read(authProvider.notifier)
+                    .sendPasswordReset(email);
+                if (context.mounted) {
+                  DDToast.success(context, 'Password reset email sent.');
+                }
+              } catch (_) {
+                if (context.mounted) {
+                  DDToast.error(context, 'Failed to send reset email.');
+                }
+              }
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -61,9 +104,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Image.asset(
             'assets/images/patio.jpg',
             fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
           ),
           // Dark overlay
-          Container(color: Colors.black.withValues(alpha: 0.45)),
+          Container(color: Colors.black.withValues(alpha: 0.30)),
           // Scrollable content
           SafeArea(
             child: SingleChildScrollView(
@@ -142,7 +186,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               Align(
                                 alignment: Alignment.centerRight,
                                 child: TextButton(
-                                  onPressed: () {},
+                                  onPressed: () =>
+                                      _showPasswordReset(context),
                                   style: TextButton.styleFrom(
                                     padding: EdgeInsets.zero,
                                     minimumSize: Size.zero,

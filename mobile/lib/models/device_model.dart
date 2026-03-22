@@ -58,6 +58,8 @@ class HealthResponse {
   final String fwVersion;
   final DateTime time;
   final DateTime? lastEventTs;
+  /// Wi-Fi RSSI in dBm (e.g. -55). Null if not provided by firmware.
+  final int? signalStrength;
 
   const HealthResponse({
     required this.ok,
@@ -65,6 +67,7 @@ class HealthResponse {
     required this.fwVersion,
     required this.time,
     this.lastEventTs,
+    this.signalStrength,
   });
 
   factory HealthResponse.fromJson(Map<String, dynamic> json) => HealthResponse(
@@ -75,5 +78,6 @@ class HealthResponse {
         lastEventTs: json['lastEventTs'] != null
             ? DateTime.fromMillisecondsSinceEpoch(json['lastEventTs'] as int)
             : null,
+        signalStrength: json['signal_strength'] as int?,
       );
 }

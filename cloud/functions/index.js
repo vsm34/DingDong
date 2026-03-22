@@ -124,6 +124,50 @@ exports.notify = functions.https.onRequest(async (req, res) => {
   return res.json({ ok: true });
 });
 
+// ─── POST /testNotify ─────────────────────────────────────────────────────────
+// Called by the mobile app to send a test push notification to the current user.
+// Requires a valid Firebase Auth ID token and a deviceId.
+exports.testNotify = functions.https.onRequest(async (req, res) => {
+  if (req.method !== 'POST') {
+    return res.status(405).json({ error: 'Method not allowed' });
+  }
+
+  // ── Verify Firebase Auth ID token ─────────────────────────────────────────────
+  const authHeader = req.headers['authorization'] || '';
+  const idToken = authHeader.startsWith('Bearer ') ? authHeader.slice(7) : null;
+  if (!idToken) {
+    return res.status(401).json({ error: 'Missing authorization' });
+  }
+
+  let decodedToken;
+  try {
+    decodedToken = await admin.auth().verifyIdToken(idToken);
+  } catch {
+    return res.status(401).json({ error: 'Invalid token' });
+  }
+
+  const { deviceId } = req.body || {};
+  if (!deviceId || typeof deviceId !== 'string') {
+    return res.status(400).json({ error: 'Missing deviceId' });
+  }
+
+  // ── Get user FCM tokens ───────────────────────────────────────────────────────
+  const userDoc = await db.collection('users').doc(decodedToken.uid).get();
+  const tokens = userDoc.exists ? (userDoc.get('fcmTokens') || []) : [];
+
+  if (tokens.length === 0) {
+    return res.status(200).json({ ok: true, sent: 0 });
+  }
+
+  await admin.messaging().sendEachForMulticast({
+    tokens,
+    notification: { title: 'Test Notification', body: 'DingDong is working!' },
+    data: { deviceId, type: 'test' },
+  });
+
+  return res.json({ ok: true, sent: tokens.length });
+});
+
 // ─── POST /provisionSecret ────────────────────────────────────────────────────
 // Called by the mobile app during device onboarding (PRD Section 4.2 Step 6).
 // Generates a fresh 32-byte HMAC signing secret and stores it on the device doc.

@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../core/theme/dd_spacing.dart';
 import '../../../core/theme/dd_typography.dart';
+import '../../../components/dd_bottom_sheet.dart';
 import '../../../components/dd_card.dart';
 import '../../../components/dd_chip.dart';
 import '../../../components/dd_empty_state.dart';
@@ -27,6 +29,96 @@ class EventsFeedScreen extends ConsumerStatefulWidget {
 
 class _EventsFeedScreenState extends ConsumerState<EventsFeedScreen> {
   final _deletedIds = <String>{};
+  final _filterTypes = <EventType>{};
+
+  void _showFilterSheet(BuildContext context) {
+    DDBottomSheet.show(
+      context: context,
+      title: 'Filter Events',
+      child: StatefulBuilder(
+        builder: (ctx, setSheetState) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text('Show only:', style: DDTypography.caption.copyWith(
+              color: DDColors.textMuted,
+            )),
+            const SizedBox(height: DDSpacing.sm),
+            Wrap(
+              spacing: DDSpacing.sm,
+              children: [
+                FilterChip(
+                  label: const Text('Doorbell'),
+                  selected: _filterTypes.contains(EventType.doorbell),
+                  selectedColor: DDColors.hunterGreen,
+                  labelStyle: TextStyle(
+                    color: _filterTypes.contains(EventType.doorbell)
+                        ? DDColors.white
+                        : DDColors.textPrimary,
+                  ),
+                  onSelected: (v) {
+                    setSheetState(() {
+                      setState(() {
+                        if (v) {
+                          _filterTypes.add(EventType.doorbell);
+                        } else {
+                          _filterTypes.remove(EventType.doorbell);
+                        }
+                      });
+                    });
+                  },
+                ),
+                FilterChip(
+                  label: const Text('Motion'),
+                  selected: _filterTypes.contains(EventType.motion),
+                  selectedColor: DDColors.hunterGreen,
+                  labelStyle: TextStyle(
+                    color: _filterTypes.contains(EventType.motion)
+                        ? DDColors.white
+                        : DDColors.textPrimary,
+                  ),
+                  onSelected: (v) {
+                    setSheetState(() {
+                      setState(() {
+                        if (v) {
+                          _filterTypes.add(EventType.motion);
+                        } else {
+                          _filterTypes.remove(EventType.motion);
+                        }
+                      });
+                    });
+                  },
+                ),
+              ],
+            ),
+            const SizedBox(height: DDSpacing.lg),
+            DDButton.secondary(
+              label: 'Clear Filters',
+              onPressed: () {
+                setState(() => _filterTypes.clear());
+                Navigator.of(ctx).pop();
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  void _markAllRead(BuildContext context) {
+    Hive.box('settings')
+        .put('lastReadTs', DateTime.now().millisecondsSinceEpoch);
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
+        content: Text('All events marked as read',
+            style: DDTypography.bodyM.copyWith(color: DDColors.white)),
+        backgroundColor: DDColors.textPrimary,
+        behavior: SnackBarBehavior.floating,
+        shape: const StadiumBorder(),
+        duration: const Duration(seconds: 2),
+      ),
+    );
+  }
 
   void _dismissEvent(BuildContext context, DdEvent event) {
     setState(() => _deletedIds.add(event.id));
@@ -67,6 +159,28 @@ class _EventsFeedScreenState extends ConsumerState<EventsFeedScreen> {
         titleSpacing: DDSpacing.xl,
         title: const DDLogo.appBar(showWordmark: true),
         actions: [
+          IconButton(
+            icon: Badge(
+              isLabelVisible: _filterTypes.isNotEmpty,
+              backgroundColor: DDColors.hunterGreen,
+              child: const Icon(Icons.filter_list,
+                  color: DDColors.textPrimary, size: 22),
+            ),
+            onPressed: () => _showFilterSheet(context),
+          ),
+          PopupMenuButton<String>(
+            icon: const Icon(Icons.more_vert,
+                color: DDColors.textPrimary),
+            onSelected: (v) {
+              if (v == 'mark_read') _markAllRead(context);
+            },
+            itemBuilder: (_) => [
+              const PopupMenuItem(
+                value: 'mark_read',
+                child: Text('Mark all as read'),
+              ),
+            ],
+          ),
           Padding(
             padding: const EdgeInsets.only(right: DDSpacing.xl),
             child: _DeviceNamePill(
@@ -113,7 +227,10 @@ class _EventsFeedScreenState extends ConsumerState<EventsFeedScreen> {
         ),
         data: (allEvents) {
           final events = allEvents
-              .where((e) => !_deletedIds.contains(e.id))
+              .where((e) =>
+                  !_deletedIds.contains(e.id) &&
+                  (_filterTypes.isEmpty ||
+                      _filterTypes.contains(e.type)))
               .toList();
 
           final now = DateTime.now();

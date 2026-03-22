@@ -1,3 +1,4 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -11,7 +12,7 @@ import '../../../navigation/app_router.dart';
 import '../../../providers/providers.dart';
 
 /// /settings/account — Account settings.
-/// Display name (tappable), email (read-only), dark mode toggle, sign out.
+/// Display name (tappable), email (read-only), appearance selector, sign out.
 class AccountSettingsScreen extends ConsumerWidget {
   const AccountSettingsScreen({super.key});
 
@@ -20,6 +21,8 @@ class AccountSettingsScreen extends ConsumerWidget {
     final auth = ref.watch(authProvider);
     final user = auth.user;
     final themeMode = ref.watch(themeModeProvider);
+    final firebaseUser = FirebaseAuth.instance.currentUser;
+    final isEmailVerified = firebaseUser?.emailVerified ?? true;
 
     return Scaffold(
       backgroundColor: DDColors.white,
@@ -27,10 +30,61 @@ class AccountSettingsScreen extends ConsumerWidget {
         backgroundColor: DDColors.white,
         elevation: 0,
         scrolledUnderElevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          onPressed: () => context.pop(),
+        ),
         title: Text('Account', style: DDTypography.h3),
       ),
       body: ListView(
         children: [
+          // Email verification banner
+          if (!isEmailVerified) ...[
+            Container(
+              width: double.infinity,
+              color: DDColors.amber.withValues(alpha: 0.15),
+              padding: const EdgeInsets.symmetric(
+                horizontal: DDSpacing.xl,
+                vertical: DDSpacing.sm,
+              ),
+              child: Row(
+                children: [
+                  const Icon(Icons.warning_amber_rounded,
+                      size: 16, color: DDColors.warning),
+                  const SizedBox(width: DDSpacing.sm),
+                  Expanded(
+                    child: Text(
+                      'Please verify your email address.',
+                      style: DDTypography.caption
+                          .copyWith(color: DDColors.warning),
+                    ),
+                  ),
+                  TextButton(
+                    onPressed: () async {
+                      await firebaseUser?.sendEmailVerification();
+                      if (context.mounted) {
+                        ScaffoldMessenger.of(context).showSnackBar(
+                          const SnackBar(
+                            content: Text('Verification email sent.'),
+                          ),
+                        );
+                      }
+                    },
+                    style: TextButton.styleFrom(
+                      padding: EdgeInsets.zero,
+                      minimumSize: Size.zero,
+                      tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      foregroundColor: DDColors.hunterGreen,
+                    ),
+                    child: Text('Resend', style: DDTypography.caption.copyWith(
+                      color: DDColors.hunterGreen,
+                      fontWeight: FontWeight.w600,
+                    )),
+                  ),
+                ],
+              ),
+            ),
+          ],
           // Display name row — tappable
           InkWell(
             onTap: () =>
@@ -89,54 +143,35 @@ class AccountSettingsScreen extends ConsumerWidget {
             ),
           ),
           const Divider(height: 0.5, thickness: 0.5, color: DDColors.borderDefault),
-          // Dark mode toggle
-          Padding(
-            padding: const EdgeInsets.symmetric(
-              horizontal: DDSpacing.xl,
-              vertical: DDSpacing.md,
-            ),
-            child: Row(
-              children: [
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        'Appearance',
-                        style: DDTypography.caption
-                            .copyWith(color: DDColors.textMuted),
-                      ),
-                      const SizedBox(height: 2),
-                      Text(_themeModeLabel(themeMode), style: DDTypography.bodyM),
-                    ],
+          // Appearance row — tappable
+          InkWell(
+            onTap: () => _pickTheme(context, ref, themeMode),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(
+                horizontal: DDSpacing.xl,
+                vertical: DDSpacing.md,
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Appearance',
+                          style: DDTypography.caption
+                              .copyWith(color: DDColors.textMuted),
+                        ),
+                        const SizedBox(height: 2),
+                        Text(_themeModeLabel(themeMode),
+                            style: DDTypography.bodyM),
+                      ],
+                    ),
                   ),
-                ),
-                DropdownButton<ThemeMode>(
-                  value: themeMode,
-                  underline: const SizedBox.shrink(),
-                  style: DDTypography.bodyM
-                      .copyWith(color: DDColors.hunterGreen),
-                  onChanged: (mode) {
-                    if (mode != null) {
-                      ref.read(themeModeProvider.notifier).state = mode;
-                    }
-                  },
-                  items: const [
-                    DropdownMenuItem(
-                      value: ThemeMode.system,
-                      child: Text('System'),
-                    ),
-                    DropdownMenuItem(
-                      value: ThemeMode.light,
-                      child: Text('Light'),
-                    ),
-                    DropdownMenuItem(
-                      value: ThemeMode.dark,
-                      child: Text('Dark'),
-                    ),
-                  ],
-                ),
-              ],
+                  const Icon(Icons.chevron_right,
+                      size: 20, color: DDColors.textMuted),
+                ],
+              ),
             ),
           ),
           const Divider(height: 0.5, thickness: 0.5, color: DDColors.borderDefault),
@@ -210,11 +245,45 @@ class AccountSettingsScreen extends ConsumerWidget {
           const SizedBox(height: DDSpacing.lg),
           DDButton.primary(
             label: 'Save',
-            onPressed: () {
+            onPressed: () async {
+              final name = ctrl.text.trim();
               Navigator.of(context).pop();
+              if (name.isEmpty) return;
+              try {
+                await FirebaseAuth.instance.currentUser
+                    ?.updateDisplayName(name);
+              } catch (_) {
+                // Non-fatal — display name update best-effort
+              }
             },
           ),
         ],
+      ),
+    );
+  }
+
+  void _pickTheme(
+      BuildContext context, WidgetRef ref, ThemeMode current) {
+    final modes = [ThemeMode.system, ThemeMode.light, ThemeMode.dark];
+    DDBottomSheet.show(
+      context: context,
+      title: 'Appearance',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: modes
+            .map(
+              (mode) => ListTile(
+                title: Text(_themeModeLabel(mode), style: DDTypography.bodyM),
+                trailing: mode == current
+                    ? const Icon(Icons.check, color: DDColors.hunterGreen)
+                    : null,
+                onTap: () {
+                  ref.read(themeModeProvider.notifier).state = mode;
+                  Navigator.of(context).pop();
+                },
+              ),
+            )
+            .toList(),
       ),
     );
   }

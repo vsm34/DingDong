@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../core/theme/dd_spacing.dart';
 import '../../../core/theme/dd_typography.dart';
@@ -17,6 +18,10 @@ class AboutScreen extends StatelessWidget {
         backgroundColor: DDColors.white,
         elevation: 0,
         scrolledUnderElevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          onPressed: () => context.pop(),
+        ),
         title: Text('About', style: DDTypography.h3),
       ),
       body: SafeArea(

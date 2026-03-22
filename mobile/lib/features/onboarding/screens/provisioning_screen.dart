@@ -76,6 +76,36 @@ class _ProvisioningScreenState extends ConsumerState<ProvisioningScreen> {
                   'Enter your home Wi-Fi credentials.',
                   style: DDTypography.bodyM.copyWith(color: DDColors.textMuted),
                 ),
+                const SizedBox(height: DDSpacing.md),
+                // 2.4 GHz warning
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: DDSpacing.md,
+                    vertical: DDSpacing.sm,
+                  ),
+                  decoration: BoxDecoration(
+                    color: DDColors.amber.withValues(alpha: 0.10),
+                    borderRadius:
+                        BorderRadius.circular(DDSpacing.radiusMd),
+                    border: Border.all(
+                        color: DDColors.amber.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.info_outline,
+                          size: 16, color: DDColors.warning),
+                      const SizedBox(width: DDSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          'DingDong requires a 2.4 GHz Wi-Fi network. '
+                          '5 GHz networks are not supported.',
+                          style: DDTypography.caption
+                              .copyWith(color: DDColors.warning),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
                 const SizedBox(height: DDSpacing.xl),
                 DDTextField(
                   label: 'Wi-Fi Network (SSID)',

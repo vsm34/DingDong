@@ -114,6 +114,10 @@ class AuthNotifier extends Notifier<AuthState> {
     }
   }
 
+  Future<void> sendPasswordReset(String email) async {
+    await FirebaseAuth.instance.sendPasswordResetEmail(email: email);
+  }
+
   Future<void> signOut() async {
     final user = FirebaseAuth.instance.currentUser;
     if (user != null) await _unregisterFcmToken(user.uid);
@@ -337,6 +341,8 @@ class LanReachabilityNotifier extends Notifier<bool> {
           lastSeen: now,
           firmwareVersion: health.fwVersion,
         );
+        // Store signal strength
+        ref.read(signalStrengthProvider.notifier).state = health.signalStrength;
         // Persist lastSeen to Firestore (non-fatal)
         _writeFirestoreLastSeen(device.deviceId);
       }
@@ -447,3 +453,98 @@ class QuietHoursNotifier extends AsyncNotifier<QuietHoursState> {
 final quietHoursProvider =
     AsyncNotifierProvider<QuietHoursNotifier, QuietHoursState>(
         QuietHoursNotifier.new);
+
+// ─── Device membership ────────────────────────────────────────────────────────
+//
+// Returns true if the current user has at least one device in deviceMembers.
+
+final deviceMembershipProvider = FutureProvider<bool>((ref) async {
+  final auth = ref.watch(authProvider);
+  if (!auth.isAuthenticated) return false;
+  final uid = auth.user!.uid;
+  try {
+    final snap = await FirebaseFirestore.instance
+        .collection('deviceMembers')
+        .where('uid', isEqualTo: uid)
+        .limit(1)
+        .get();
+    return snap.docs.isNotEmpty;
+  } catch (_) {
+    return true; // Fail open — avoid false onboarding redirects
+  }
+});
+
+// ─── Motion schedule ──────────────────────────────────────────────────────────
+
+class MotionScheduleState {
+  final bool enabled;
+  final TimeOfDay start;
+  final TimeOfDay end;
+
+  const MotionScheduleState({
+    this.enabled = false,
+    this.start = const TimeOfDay(hour: 6, minute: 0),
+    this.end = const TimeOfDay(hour: 22, minute: 0),
+  });
+
+  MotionScheduleState copyWith({
+    bool? enabled,
+    TimeOfDay? start,
+    TimeOfDay? end,
+  }) =>
+      MotionScheduleState(
+        enabled: enabled ?? this.enabled,
+        start: start ?? this.start,
+        end: end ?? this.end,
+      );
+}
+
+class MotionScheduleNotifier extends AsyncNotifier<MotionScheduleState> {
+  @override
+  Future<MotionScheduleState> build() async {
+    final device = ref.watch(deviceProvider);
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('devices')
+          .doc(device.deviceId)
+          .get();
+      if (!doc.exists) return const MotionScheduleState();
+      final data = doc.data()!;
+      return MotionScheduleState(
+        enabled: (data['motionScheduleEnabled'] as bool?) ?? false,
+        start: _minutesToTime((data['motionScheduleStart'] as int?) ?? 6 * 60),
+        end: _minutesToTime((data['motionScheduleEnd'] as int?) ?? 22 * 60),
+      );
+    } catch (_) {
+      return const MotionScheduleState();
+    }
+  }
+
+  Future<void> save(MotionScheduleState updated) async {
+    state = AsyncData(updated);
+    final device = ref.read(deviceProvider);
+    try {
+      await FirebaseFirestore.instance
+          .collection('devices')
+          .doc(device.deviceId)
+          .update({
+        'motionScheduleEnabled': updated.enabled,
+        'motionScheduleStart': updated.start.hour * 60 + updated.start.minute,
+        'motionScheduleEnd': updated.end.hour * 60 + updated.end.minute,
+      });
+    } catch (_) {
+      // Non-fatal
+    }
+  }
+
+  static TimeOfDay _minutesToTime(int minutes) =>
+      TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60);
+}
+
+final motionScheduleProvider =
+    AsyncNotifierProvider<MotionScheduleNotifier, MotionScheduleState>(
+        MotionScheduleNotifier.new);
+
+// ─── Signal strength (from LAN health) ───────────────────────────────────────
+
+final signalStrengthProvider = StateProvider<int?>((ref) => null);

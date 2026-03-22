@@ -1,12 +1,15 @@
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:image_gallery_saver/image_gallery_saver.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../core/theme/dd_spacing.dart';
 import '../../../core/theme/dd_typography.dart';
 import '../../../components/dd_bottom_sheet.dart';
 import '../../../components/dd_loading_indicator.dart';
+import '../../../components/dd_toast.dart';
 import '../../../models/clip_model.dart';
 import '../../../providers/providers.dart';
 
@@ -26,6 +29,7 @@ class _ClipPlayerScreenState extends ConsumerState<ClipPlayerScreen> {
   DdClip? _clip;
   bool _isPlaying = false;
   double _progress = 0.0;
+  bool _isSaving = false;
 
   @override
   void initState() {
@@ -79,11 +83,27 @@ class _ClipPlayerScreenState extends ConsumerState<ClipPlayerScreen> {
                   icon: const Icon(Icons.arrow_back, color: Colors.white),
                 ),
                 const Spacer(),
-                if (_clip != null)
+                if (_clip != null) ...[
+                  IconButton(
+                    onPressed: _isSaving ? null : _saveToGallery,
+                    icon: _isSaving
+                        ? const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              color: Colors.white,
+                            ),
+                          )
+                        : const Icon(Icons.download,
+                            color: Colors.white),
+                    tooltip: 'Save to gallery',
+                  ),
                   IconButton(
                     onPressed: () => _showMetadata(context),
                     icon: const Icon(Icons.info_outline, color: Colors.white),
                   ),
+                ],
               ],
             ),
           ),
@@ -142,6 +162,26 @@ class _ClipPlayerScreenState extends ConsumerState<ClipPlayerScreen> {
         ],
       ),
     );
+  }
+
+  Future<void> _saveToGallery() async {
+    if (kIsWeb) {
+      DDToast.error(context, 'Save to gallery is not available on web.');
+      return;
+    }
+    setState(() => _isSaving = true);
+    try {
+      final bytes =
+          await ref.read(deviceApiProvider).downloadClip(widget.clipId);
+      await ImageGallerySaver.saveImage(bytes,
+          quality: 100,
+          name: 'dingdong_${widget.clipId}');
+      if (mounted) DDToast.success(context, 'Clip saved to gallery.');
+    } catch (_) {
+      if (mounted) DDToast.error(context, 'Failed to save clip.');
+    } finally {
+      if (mounted) setState(() => _isSaving = false);
+    }
   }
 
   void _showMetadata(BuildContext context) {

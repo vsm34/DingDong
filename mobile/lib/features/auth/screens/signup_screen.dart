@@ -68,9 +68,10 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
           Image.asset(
             'assets/images/patio.jpg',
             fit: BoxFit.cover,
+            alignment: Alignment.topCenter,
           ),
           // Dark overlay
-          Container(color: Colors.black.withValues(alpha: 0.45)),
+          Container(color: Colors.black.withValues(alpha: 0.30)),
           // Scrollable content
           SafeArea(
             child: SingleChildScrollView(

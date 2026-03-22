@@ -147,8 +147,10 @@ List<RouteBase> get _routes => [
 /// routerProvider — single source of truth for navigation.
 /// Auth redirect is wired here: unauthenticated users go to /login,
 /// authenticated users cannot reach /login or /signup.
+/// Device membership redirect: authenticated users with no device go to onboarding.
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
+  final membershipAsync = ref.watch(deviceMembershipProvider);
 
   return GoRouter(
     initialLocation: Routes.splash,
@@ -163,12 +165,16 @@ final routerProvider = Provider<GoRouter>((ref) {
 
       // Splash handles its own navigation
       if (isSplash) return null;
-      // Onboarding accessible unauthenticated (needed to set up device)
+      // Onboarding always accessible
       if (isOnboarding) return null;
       // Unauthenticated → send to login
       if (!isAuth && !isAuthRoute) return Routes.login;
       // Authenticated → cannot visit auth screens
       if (isAuth && isAuthRoute) return Routes.homeEvents;
+      // Authenticated + no device paired → onboarding
+      if (isAuth && !isAuthRoute && membershipAsync.valueOrNull == false) {
+        return Routes.onboardWelcome;
+      }
 
       return null;
     },

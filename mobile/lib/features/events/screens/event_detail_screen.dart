@@ -15,6 +15,7 @@ import '../../../providers/providers.dart';
 
 /// /events/:eventId — Event detail.
 /// Hero banner (doorbell/motion), sensor stats, Play Clip button.
+/// Next/previous navigation arrows.
 class EventDetailScreen extends ConsumerWidget {
   final String eventId;
 
@@ -23,6 +24,19 @@ class EventDetailScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final eventAsync = ref.watch(eventDetailProvider(eventId));
+    final eventsAsync = ref.watch(eventsProvider);
+
+    // Build sorted event id list for prev/next
+    final allEventIds = eventsAsync.valueOrNull
+            ?.map((e) => e.id)
+            .toList() ??
+        [];
+    final currentIndex = allEventIds.indexOf(eventId);
+    final prevId =
+        currentIndex > 0 ? allEventIds[currentIndex - 1] : null;
+    final nextId = currentIndex >= 0 && currentIndex < allEventIds.length - 1
+        ? allEventIds[currentIndex + 1]
+        : null;
 
     return Scaffold(
       backgroundColor: DDColors.white,
@@ -30,8 +44,24 @@ class EventDetailScreen extends ConsumerWidget {
         backgroundColor: DDColors.white,
         elevation: 0,
         scrolledUnderElevation: 0.5,
+        leading: IconButton(
+          icon: const Icon(Icons.arrow_back_ios_new, size: 18),
+          onPressed: () => context.pop(),
+        ),
         title: Text('Event', style: DDTypography.h3),
         actions: [
+          if (prevId != null)
+            IconButton(
+              onPressed: () => context.replace(Routes.eventDetailPath(prevId)),
+              icon: const Icon(Icons.arrow_back, size: 20),
+              tooltip: 'Previous',
+            ),
+          if (nextId != null)
+            IconButton(
+              onPressed: () => context.replace(Routes.eventDetailPath(nextId)),
+              icon: const Icon(Icons.arrow_forward, size: 20),
+              tooltip: 'Next',
+            ),
           IconButton(
             onPressed: () => _confirmDelete(context, ref),
             icon: const Icon(Icons.delete_outline, color: DDColors.error),
@@ -82,6 +112,7 @@ class _EventDetailBody extends ConsumerStatefulWidget {
 
 class _EventDetailBodyState extends ConsumerState<_EventDetailBody> {
   bool _isDownloading = false;
+  double _downloadProgress = 0.0;
 
   @override
   Widget build(BuildContext context) {
@@ -128,19 +159,36 @@ class _EventDetailBodyState extends ConsumerState<_EventDetailBody> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'PIR',
+                          'Motion Sensor (PIR)',
                           style: DDTypography.caption
                               .copyWith(color: DDColors.textMuted),
                         ),
                         const SizedBox(height: DDSpacing.xs),
-                        Text(
-                          stats.pirTriggered ? 'Triggered' : 'Not triggered',
-                          style: DDTypography.bodyM.copyWith(
-                            fontWeight: FontWeight.w600,
-                            color: stats.pirTriggered
-                                ? DDColors.motionEventChip
-                                : DDColors.textMuted,
-                          ),
+                        Row(
+                          children: [
+                            Icon(
+                              stats.pirTriggered
+                                  ? Icons.sensors
+                                  : Icons.sensors_off,
+                              size: 14,
+                              color: stats.pirTriggered
+                                  ? DDColors.motionEventChip
+                                  : DDColors.textMuted,
+                            ),
+                            const SizedBox(width: 4),
+                            Text(
+                              stats.pirTriggered
+                                  ? 'Body heat detected'
+                                  : 'No heat signature',
+                              style: DDTypography.bodyM.copyWith(
+                                fontWeight: FontWeight.w600,
+                                color: stats.pirTriggered
+                                    ? DDColors.motionEventChip
+                                    : DDColors.textMuted,
+                                fontSize: 12,
+                              ),
+                            ),
+                          ],
                         ),
                       ],
                     ),
@@ -153,17 +201,19 @@ class _EventDetailBodyState extends ConsumerState<_EventDetailBody> {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'mmWave',
+                          'Radar (mmWave)',
                           style: DDTypography.caption
                               .copyWith(color: DDColors.textMuted),
                         ),
                         const SizedBox(height: DDSpacing.xs),
                         Text(
                           stats.mmwaveDistance != null
-                              ? '${stats.mmwaveDistance!.toStringAsFixed(1)} m'
-                              : '—',
-                          style: DDTypography.bodyM
-                              .copyWith(fontWeight: FontWeight.w600),
+                              ? _distanceLabel(stats.mmwaveDistance!)
+                              : 'No target',
+                          style: DDTypography.bodyM.copyWith(
+                            fontWeight: FontWeight.w600,
+                            fontSize: 12,
+                          ),
                         ),
                       ],
                     ),
@@ -177,28 +227,67 @@ class _EventDetailBodyState extends ConsumerState<_EventDetailBody> {
           if (widget.event.clipId != null) ...[
             DDButton.primary(
               label: isLanReachable
-                  ? (_isDownloading ? 'Loading...' : 'Play Clip')
+                  ? (_isDownloading ? 'Loading clip...' : 'Play Clip')
                   : 'Available on home Wi-Fi',
               onPressed: isLanReachable && !_isDownloading
                   ? () => _playClip(context)
                   : null,
               isLoading: _isDownloading,
             ),
-            const SizedBox(height: DDSpacing.sm),
-            Text(
-              'Clip stored locally on your device.',
-              style: DDTypography.caption.copyWith(color: DDColors.textMuted),
-            ),
+            if (_isDownloading) ...[
+              const SizedBox(height: DDSpacing.sm),
+              ClipRRect(
+                borderRadius:
+                    BorderRadius.circular(DDSpacing.radiusFull),
+                child: LinearProgressIndicator(
+                  value: _downloadProgress > 0 ? _downloadProgress : null,
+                  minHeight: 4,
+                  backgroundColor: DDColors.borderDefault,
+                  color: DDColors.hunterGreen,
+                ),
+              ),
+              const SizedBox(height: DDSpacing.xs),
+              Text(
+                _downloadProgress > 0
+                    ? '${(_downloadProgress * 100).toStringAsFixed(0)}%'
+                    : 'Preparing…',
+                style: DDTypography.caption
+                    .copyWith(color: DDColors.textMuted),
+              ),
+            ],
+            if (!_isDownloading) ...[
+              const SizedBox(height: DDSpacing.sm),
+              Text(
+                'Clip stored locally on your device.',
+                style: DDTypography.caption
+                    .copyWith(color: DDColors.textMuted),
+              ),
+            ],
           ],
         ],
       ),
     );
   }
 
+  static String _distanceLabel(double meters) {
+    if (meters < 0.5) return 'Very close (<0.5 m)';
+    if (meters < 1.5) return '${meters.toStringAsFixed(1)} m — Near';
+    if (meters < 3.0) return '${meters.toStringAsFixed(1)} m — Mid-range';
+    return '${meters.toStringAsFixed(1)} m — Far';
+  }
+
   Future<void> _playClip(BuildContext context) async {
-    setState(() => _isDownloading = true);
+    setState(() {
+      _isDownloading = true;
+      _downloadProgress = 0.0;
+    });
     final router = GoRouter.of(context);
-    await Future.delayed(const Duration(milliseconds: 500));
+    // Simulate progress for the placeholder implementation
+    for (var i = 1; i <= 5; i++) {
+      await Future.delayed(const Duration(milliseconds: 100));
+      if (!mounted) return;
+      setState(() => _downloadProgress = i / 5);
+    }
     if (!mounted) return;
     setState(() => _isDownloading = false);
     router.push(Routes.clipPlayerPath(widget.event.clipId!));
