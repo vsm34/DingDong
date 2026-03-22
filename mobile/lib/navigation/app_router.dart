@@ -17,6 +17,7 @@ import '../features/clips/screens/clips_list_screen.dart';
 import '../features/clips/screens/clip_player_screen.dart';
 import '../features/live_view/screens/live_view_screen.dart';
 import '../features/settings/screens/device_settings_screen.dart';
+import '../features/settings/screens/storage_manager_screen.dart';
 import '../features/home/screens/home_settings_screen.dart';
 import '../features/debug/screens/debug_screen.dart';
 
@@ -38,6 +39,7 @@ abstract final class Routes {
   static const clipPlayer = '/clips/:clipId';
   static const deviceSettings = '/settings/device';
   static const accountSettings = '/settings/account';
+  static const storageManager = '/settings/storage';
   static const debug = '/debug';
 
   static String eventDetailPath(String eventId) => '/events/$eventId';
@@ -125,6 +127,10 @@ List<RouteBase> get _routes => [
       GoRoute(
         path: Routes.accountSettings,
         builder: (_, __) => const AccountSettingsScreen(),
+      ),
+      GoRoute(
+        path: Routes.storageManager,
+        builder: (_, __) => const StorageManagerScreen(),
       ),
       GoRoute(
         path: Routes.debug,

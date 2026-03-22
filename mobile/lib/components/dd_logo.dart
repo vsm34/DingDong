@@ -32,6 +32,11 @@ class DDLogo extends StatelessWidget {
         showWordmark = false,
         darkBackground = false;
 
+  /// White/inverted variant for display on dark backgrounds
+  const DDLogo.white({super.key, this.showWordmark = true})
+      : size = DDLogoSize.hero,
+        darkBackground = true;
+
   @override
   Widget build(BuildContext context) {
     switch (size) {
@@ -52,23 +57,23 @@ class DDLogo extends StatelessWidget {
         color: const Color(0xFFF8F8F6),
         borderRadius: BorderRadius.circular(18),
       ),
-      child: const CustomPaint(
-        size: Size(56, 56),
-        painter: _BellPainter(bellHeight: 28, bellWidth: 30),
+      child: CustomPaint(
+        size: const Size(56, 56),
+        painter: _BellPainter(bellHeight: 25, bellWidth: 37, isWhite: darkBackground),
       ),
     );
   }
 
   Widget _buildAppBarLogo() {
-    const bellH = 18.0;
-    const bellW = 20.0;
+    const bellH = 16.0;
+    const bellW = 23.0;
     const waveSpan = 44.0;
     const totalWidth = waveSpan * 2 + bellW;
 
     return Row(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(
+        SizedBox(
           width: totalWidth,
           height: bellH + 8,
           child: CustomPaint(
@@ -76,6 +81,7 @@ class DDLogo extends StatelessWidget {
               bellHeight: bellH,
               bellWidth: bellW,
               waveSpan: waveSpan,
+              isWhite: darkBackground,
             ),
           ),
         ),
@@ -86,7 +92,7 @@ class DDLogo extends StatelessWidget {
             style: GoogleFonts.inter(
               fontSize: 16,
               fontWeight: FontWeight.w700,
-              color: DDColors.textPrimary,
+              color: darkBackground ? DDColors.white : DDColors.textPrimary,
               letterSpacing: -0.8,
             ),
           ),
@@ -96,15 +102,15 @@ class DDLogo extends StatelessWidget {
   }
 
   Widget _buildHeroLogo() {
-    const bellH = 28.0;
-    const bellW = 32.0;
+    const bellH = 25.0;
+    const bellW = 37.0;
     const waveSpan = 70.0;
     const totalWidth = waveSpan * 2 + bellW;
 
     return Column(
       mainAxisSize: MainAxisSize.min,
       children: [
-        const SizedBox(
+        SizedBox(
           width: totalWidth,
           height: bellH + 12,
           child: CustomPaint(
@@ -112,17 +118,18 @@ class DDLogo extends StatelessWidget {
               bellHeight: bellH,
               bellWidth: bellW,
               waveSpan: waveSpan,
+              isWhite: darkBackground,
             ),
           ),
         ),
         if (showWordmark) ...[
-          const SizedBox(height: 8),
+          const SizedBox(height: 16),
           Text(
             'DingDong',
             style: GoogleFonts.inter(
               fontSize: 26,
               fontWeight: FontWeight.w700,
-              color: DDColors.textPrimary,
+              color: darkBackground ? DDColors.white : DDColors.textPrimary,
               letterSpacing: -0.8,
             ),
           ),
@@ -136,14 +143,19 @@ class DDLogo extends StatelessWidget {
 class _BellPainter extends CustomPainter {
   final double bellHeight;
   final double bellWidth;
+  final bool isWhite;
 
-  const _BellPainter({required this.bellHeight, required this.bellWidth});
+  const _BellPainter({
+    required this.bellHeight,
+    required this.bellWidth,
+    this.isWhite = false,
+  });
 
   @override
   void paint(Canvas canvas, Size size) {
     final cx = size.width / 2;
     final cy = size.height / 2;
-    _drawBell(canvas, Offset(cx, cy), bellHeight, bellWidth);
+    _drawBell(canvas, Offset(cx, cy), bellHeight, bellWidth, isWhite: isWhite);
   }
 
   @override
@@ -155,11 +167,13 @@ class _LogoPainter extends CustomPainter {
   final double bellHeight;
   final double bellWidth;
   final double waveSpan;
+  final bool isWhite;
 
   const _LogoPainter({
     required this.bellHeight,
     required this.bellWidth,
     required this.waveSpan,
+    this.isWhite = false,
   });
 
   @override
@@ -170,27 +184,27 @@ class _LogoPainter extends CustomPainter {
     canvas.save();
     canvas.scale(-1, 1);
     canvas.translate(-size.width, 0);
-    _drawWaves(canvas, Offset(size.width / 2, size.height / 2), bellWidth, waveSpan);
+    _drawWaves(canvas, Offset(size.width / 2, size.height / 2), bellWidth, waveSpan, isWhite: isWhite);
     canvas.restore();
 
     // Draw waves right side
-    _drawWaves(canvas, bellCenter, bellWidth, waveSpan);
+    _drawWaves(canvas, bellCenter, bellWidth, waveSpan, isWhite: isWhite);
 
     // Draw bell on top
-    _drawBell(canvas, bellCenter, bellHeight, bellWidth);
+    _drawBell(canvas, bellCenter, bellHeight, bellWidth, isWhite: isWhite);
   }
 
   @override
   bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
 
-void _drawBell(Canvas canvas, Offset center, double h, double w) {
+void _drawBell(Canvas canvas, Offset center, double h, double w, {bool isWhite = false}) {
   final paint = Paint()..style = PaintingStyle.fill;
-  const darkGreen = DDColors.hunterGreenDark;
-  const green = DDColors.hunterGreen;
+  final bodyColor = isWhite ? Colors.white : DDColors.hunterGreen;
+  final darkColor = isWhite ? const Color(0xCCFFFFFF) : DDColors.hunterGreenDark;
 
   // Bell body — wide trapezoid (wider at bottom than top)
-  paint.color = green;
+  paint.color = bodyColor;
   final bodyPath = Path();
   final bodyTop = center.dy - h * 0.55;
   final bodyBottom = center.dy + h * 0.1;
@@ -202,7 +216,7 @@ void _drawBell(Canvas canvas, Offset center, double h, double w) {
   canvas.drawPath(bodyPath, paint);
 
   // Bell rim — wide flat rounded rect
-  paint.color = darkGreen;
+  paint.color = darkColor;
   final rimRect = RRect.fromRectAndRadius(
     Rect.fromCenter(
       center: Offset(center.dx, center.dy + h * 0.15),
@@ -214,7 +228,7 @@ void _drawBell(Canvas canvas, Offset center, double h, double w) {
   canvas.drawRRect(rimRect, paint);
 
   // Bell clapper — circle beneath rim
-  paint.color = darkGreen;
+  paint.color = darkColor;
   canvas.drawCircle(
     Offset(center.dx, center.dy + h * 0.35),
     h * 0.1,
@@ -222,7 +236,7 @@ void _drawBell(Canvas canvas, Offset center, double h, double w) {
   );
 
   // Bell stem — small rect + circle at top
-  paint.color = green;
+  paint.color = bodyColor;
   canvas.drawRect(
     Rect.fromCenter(
       center: Offset(center.dx, center.dy - h * 0.6),
@@ -238,15 +252,16 @@ void _drawBell(Canvas canvas, Offset center, double h, double w) {
   );
 }
 
-void _drawWaves(Canvas canvas, Offset center, double bellWidth, double waveSpan) {
+void _drawWaves(Canvas canvas, Offset center, double bellWidth, double waveSpan, {bool isWhite = false}) {
   final arcStart = center.dx + bellWidth * 0.5;
-  final opacities = [1.0, 0.75, 0.45, 0.20];
-  final strokeWidths = [3.0, 2.5, 2.0, 1.5];
-  final radiusFactors = [0.25, 0.45, 0.65, 0.85];
+  final baseColor = isWhite ? Colors.white : DDColors.amber;
+  final opacities = [1.0, 0.65, 0.30];
+  final strokeWidths = [3.0, 2.5, 1.8];
+  final radiusFactors = [0.30, 0.58, 0.85];
 
-  for (var i = 0; i < 4; i++) {
+  for (var i = 0; i < 3; i++) {
     final paint = Paint()
-      ..color = DDColors.amber.withValues(alpha: opacities[i])
+      ..color = baseColor.withValues(alpha: opacities[i])
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidths[i]
       ..strokeCap = StrokeCap.round;

@@ -31,4 +31,14 @@ abstract final class DDColors {
   // ── Borders ───────────────────────────────────────────────────────────────
   static const Color borderDefault = Color(0xFFE0E0DC);
   static const Color borderStrong = Color(0xFFC8D8C8);
+
+  // ── Dark mode surfaces ────────────────────────────────────────────────────
+  static const Color darkBg = Color(0xFF0F1A0F);
+  static const Color darkCard = Color(0xFF1A2E1A);
+  static const Color darkBorder = Color(0xFF2D4A2D);
+  static const Color darkTextMuted = Color(0xFF7FA87F);
+
+  // ── Event icon backgrounds (deeper colors) ────────────────────────────────
+  static const Color motionIconBg = Color(0xFF0F766E);
+  static const Color doorbellIconBg = Color(0xFFD97706);
 }

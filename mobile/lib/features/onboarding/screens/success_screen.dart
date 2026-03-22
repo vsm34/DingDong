@@ -44,8 +44,8 @@ class _SuccessScreenState extends ConsumerState<SuccessScreen> {
           children: [
             // Confetti background
             Positioned.fill(
-              child: Lottie.asset(
-                'assets/lottie/confetti.json',
+              child: Lottie.network(
+                'https://assets3.lottiefiles.com/packages/lf20_jbb5rvbk.json',
                 fit: BoxFit.cover,
                 errorBuilder: (_, __, ___) => const SizedBox.shrink(),
               ),

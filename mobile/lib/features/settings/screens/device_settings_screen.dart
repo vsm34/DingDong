@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../core/theme/dd_spacing.dart';
 import '../../../core/theme/dd_typography.dart';
@@ -11,11 +12,11 @@ import '../../../components/dd_loading_indicator.dart';
 import '../../../components/dd_toast.dart';
 import '../../../models/device_model.dart';
 import '../../../models/device_settings_model.dart';
+import '../../../navigation/app_router.dart';
 import '../../../providers/providers.dart';
 
 /// /settings/device — Device settings.
-/// Device status card, Motion section, Notifications section,
-/// Clips section, Danger Zone.
+/// Device status card, Motion, Notifications, Clips, Quiet Hours, Storage, Danger Zone.
 class DeviceSettingsScreen extends ConsumerWidget {
   const DeviceSettingsScreen({super.key});
 
@@ -78,6 +79,9 @@ class _SettingsBodyState extends ConsumerState<_SettingsBody> {
   Widget build(BuildContext context) {
     final isLanReachable = ref.watch(lanReachableProvider);
     final device = ref.watch(deviceProvider);
+    final qhAsync = ref.watch(quietHoursProvider);
+    final qh = qhAsync.valueOrNull ?? const QuietHoursState();
+    final clipCount = ref.watch(clipsProvider).valueOrNull?.length ?? 0;
 
     return ListView(
       padding: const EdgeInsets.all(DDSpacing.xl),
@@ -162,6 +166,63 @@ class _SettingsBodyState extends ConsumerState<_SettingsBody> {
             onTap: () => _showClipLengthPicker(context),
           ),
         ),
+        const SizedBox(height: DDSpacing.lg),
+        // QUIET HOURS
+        const _SectionLabel('QUIET HOURS'),
+        DDCard(
+          child: Column(
+            children: [
+              _ToggleRow(
+                label: 'Enable Quiet Hours',
+                value: qh.enabled,
+                onChanged: (v) => ref
+                    .read(quietHoursProvider.notifier)
+                    .save(qh.copyWith(enabled: v)),
+              ),
+              if (qh.enabled) ...[
+                const Divider(
+                  height: 0.5,
+                  thickness: 0.5,
+                  color: DDColors.borderDefault,
+                ),
+                _TapRow(
+                  label: 'Quiet from',
+                  trailing: Text(
+                    qh.start.format(context),
+                    style: DDTypography.bodyM,
+                  ),
+                  onTap: () => _pickTime(context, qh, isStart: true),
+                ),
+                const Divider(
+                  height: 0.5,
+                  thickness: 0.5,
+                  color: DDColors.borderDefault,
+                ),
+                _TapRow(
+                  label: 'Quiet until',
+                  trailing: Text(
+                    qh.end.format(context),
+                    style: DDTypography.bodyM,
+                  ),
+                  onTap: () => _pickTime(context, qh, isStart: false),
+                ),
+              ],
+            ],
+          ),
+        ),
+        const SizedBox(height: DDSpacing.lg),
+        // STORAGE
+        const _SectionLabel('STORAGE'),
+        DDCard(
+          child: _TapRow(
+            label: 'Manage Storage',
+            trailing: Text(
+              '$clipCount clips',
+              style: DDTypography.bodyM.copyWith(color: DDColors.textMuted),
+            ),
+            onTap: () => context.push(Routes.storageManager),
+          ),
+        ),
         const SizedBox(height: DDSpacing.xl),
         // DANGER ZONE
         const _SectionLabel('DANGER ZONE'),
@@ -206,6 +267,22 @@ class _SettingsBodyState extends ConsumerState<_SettingsBody> {
       ),
     );
   }
+
+  Future<void> _pickTime(
+      BuildContext context, QuietHoursState qh, {required bool isStart}) async {
+    final picked = await showTimePicker(
+      context: context,
+      initialTime: isStart ? qh.start : qh.end,
+    );
+    if (picked != null) {
+      ref.read(quietHoursProvider.notifier).save(
+            qh.copyWith(
+              start: isStart ? picked : qh.start,
+              end: isStart ? qh.end : picked,
+            ),
+          );
+    }
+  }
 }
 
 class _SectionLabel extends StatelessWidget {
@@ -217,11 +294,20 @@ class _SectionLabel extends StatelessWidget {
   Widget build(BuildContext context) {
     return Padding(
       padding: const EdgeInsets.only(bottom: DDSpacing.sm),
-      child: Text(
-        text,
-        style: DDTypography.caption.copyWith(
-          color: DDColors.textMuted,
-          letterSpacing: 0.4,
+      child: Container(
+        padding: const EdgeInsets.only(left: 8),
+        decoration: const BoxDecoration(
+          border: Border(
+            left: BorderSide(color: DDColors.hunterGreen, width: 3),
+          ),
+        ),
+        child: Text(
+          text,
+          style: DDTypography.caption.copyWith(
+            color: DDColors.hunterGreen,
+            fontWeight: FontWeight.w600,
+            letterSpacing: 0.4,
+          ),
         ),
       ),
     );

@@ -11,8 +11,7 @@ import '../../../navigation/app_router.dart';
 import '../../../providers/providers.dart';
 
 /// /settings/account — Account settings.
-/// Display name (tappable, edit DDBottomSheet), email (read-only).
-/// "Sign Out" destructive button. "App version 1.0.0" caption at bottom.
+/// Display name (tappable), email (read-only), dark mode toggle, sign out.
 class AccountSettingsScreen extends ConsumerWidget {
   const AccountSettingsScreen({super.key});
 
@@ -20,6 +19,7 @@ class AccountSettingsScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final auth = ref.watch(authProvider);
     final user = auth.user;
+    final themeMode = ref.watch(themeModeProvider);
 
     return Scaffold(
       backgroundColor: DDColors.white,
@@ -68,11 +68,7 @@ class AccountSettingsScreen extends ConsumerWidget {
               ),
             ),
           ),
-          const Divider(
-            height: 0.5,
-            thickness: 0.5,
-            color: DDColors.borderDefault,
-          ),
+          const Divider(height: 0.5, thickness: 0.5, color: DDColors.borderDefault),
           // Email row — read-only
           Padding(
             padding: const EdgeInsets.symmetric(
@@ -92,15 +88,61 @@ class AccountSettingsScreen extends ConsumerWidget {
               ],
             ),
           ),
-          const Divider(
-            height: 0.5,
-            thickness: 0.5,
-            color: DDColors.borderDefault,
+          const Divider(height: 0.5, thickness: 0.5, color: DDColors.borderDefault),
+          // Dark mode toggle
+          Padding(
+            padding: const EdgeInsets.symmetric(
+              horizontal: DDSpacing.xl,
+              vertical: DDSpacing.md,
+            ),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Appearance',
+                        style: DDTypography.caption
+                            .copyWith(color: DDColors.textMuted),
+                      ),
+                      const SizedBox(height: 2),
+                      Text(_themeModeLabel(themeMode), style: DDTypography.bodyM),
+                    ],
+                  ),
+                ),
+                DropdownButton<ThemeMode>(
+                  value: themeMode,
+                  underline: const SizedBox.shrink(),
+                  style: DDTypography.bodyM
+                      .copyWith(color: DDColors.hunterGreen),
+                  onChanged: (mode) {
+                    if (mode != null) {
+                      ref.read(themeModeProvider.notifier).state = mode;
+                    }
+                  },
+                  items: const [
+                    DropdownMenuItem(
+                      value: ThemeMode.system,
+                      child: Text('System'),
+                    ),
+                    DropdownMenuItem(
+                      value: ThemeMode.light,
+                      child: Text('Light'),
+                    ),
+                    DropdownMenuItem(
+                      value: ThemeMode.dark,
+                      child: Text('Dark'),
+                    ),
+                  ],
+                ),
+              ],
+            ),
           ),
+          const Divider(height: 0.5, thickness: 0.5, color: DDColors.borderDefault),
           const SizedBox(height: DDSpacing.xl),
           Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: DDSpacing.xl),
+            padding: const EdgeInsets.symmetric(horizontal: DDSpacing.xl),
             child: DDButton.destructive(
               label: 'Sign Out',
               onPressed: () {
@@ -122,6 +164,17 @@ class AccountSettingsScreen extends ConsumerWidget {
     );
   }
 
+  static String _themeModeLabel(ThemeMode mode) {
+    switch (mode) {
+      case ThemeMode.system:
+        return 'System default';
+      case ThemeMode.light:
+        return 'Light';
+      case ThemeMode.dark:
+        return 'Dark';
+    }
+  }
+
   void _editDisplayName(
       BuildContext context, WidgetRef ref, String current) {
     final ctrl = TextEditingController(text: current);
@@ -141,7 +194,6 @@ class AccountSettingsScreen extends ConsumerWidget {
           DDButton.primary(
             label: 'Save',
             onPressed: () {
-              // Phase 2B: persist to Firestore
               Navigator.of(context).pop();
             },
           ),

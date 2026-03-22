@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../core/theme/dd_spacing.dart';
 import '../../../core/theme/dd_typography.dart';
+import '../../../components/dd_card.dart';
 import '../../../components/dd_chip.dart';
 import '../../../components/dd_empty_state.dart';
 import '../../../components/dd_button.dart';
@@ -16,7 +17,7 @@ import '../../../providers/providers.dart';
 
 /// /home/events — Events feed tab.
 /// App bar: DDLogo left, device name pill right.
-/// Pull-to-refresh, sections by date, event rows, FAB when on LAN.
+/// Dashboard card at top. Pull-to-refresh, sections by date, event rows, FAB when on LAN.
 class EventsFeedScreen extends ConsumerWidget {
   const EventsFeedScreen({super.key});
 
@@ -24,6 +25,7 @@ class EventsFeedScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final device = ref.watch(deviceProvider);
     final eventsAsync = ref.watch(eventsProvider);
+    final clipsAsync = ref.watch(clipsProvider);
     final isLanReachable = ref.watch(lanReachableProvider);
 
     return Scaffold(
@@ -39,7 +41,7 @@ class EventsFeedScreen extends ConsumerWidget {
             padding: const EdgeInsets.only(right: DDSpacing.xl),
             child: _DeviceNamePill(
               name: device.displayName,
-              isOnline: device.isOnline,
+              isOnline: isLanReachable,
             ),
           ),
         ],
@@ -60,7 +62,16 @@ class EventsFeedScreen extends ConsumerWidget {
           : null,
       body: eventsAsync.when(
         loading: () => ListView(
-          children: List.generate(5, (_) => const DDShimmerTile()),
+          children: [
+            _DashboardCard(
+              device: device,
+              isLanReachable: isLanReachable,
+              todayCount: 0,
+              clipCount: 0,
+              lastMotion: null,
+            ),
+            ...List.generate(5, (_) => const DDShimmerTile()),
+          ],
         ),
         error: (_, __) => DDEmptyState.error(
           action: DDButton.secondary(
@@ -71,13 +82,152 @@ class EventsFeedScreen extends ConsumerWidget {
           message: 'Failed to load events.',
         ),
         data: (events) {
-          if (events.isEmpty) return const DDEmptyState.events();
+          final now = DateTime.now();
+          final today = DateTime(now.year, now.month, now.day);
+          final todayCount = events
+              .where((e) => !e.timestamp.isBefore(today))
+              .length;
+          final motionEvents = events
+              .where((e) => e.type == EventType.motion)
+              .toList()
+            ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
+          final lastMotion =
+              motionEvents.isNotEmpty ? motionEvents.first.timestamp : null;
+          final clipCount = clipsAsync.valueOrNull?.length ?? 0;
+
+          final dashboard = _DashboardCard(
+            device: device,
+            isLanReachable: isLanReachable,
+            todayCount: todayCount,
+            clipCount: clipCount,
+            lastMotion: lastMotion,
+          );
+
+          if (events.isEmpty) {
+            return Column(
+              children: [
+                dashboard,
+                const Expanded(child: DDEmptyState.events()),
+              ],
+            );
+          }
           return RefreshIndicator(
             color: DDColors.hunterGreen,
             onRefresh: () => ref.refresh(eventsProvider.future),
-            child: _EventsList(events: events),
+            child: _EventsList(events: events, header: dashboard),
           );
         },
+      ),
+    );
+  }
+}
+
+class _DashboardCard extends StatelessWidget {
+  final dynamic device;
+  final bool isLanReachable;
+  final int todayCount;
+  final int clipCount;
+  final DateTime? lastMotion;
+
+  const _DashboardCard({
+    required this.device,
+    required this.isLanReachable,
+    required this.todayCount,
+    required this.clipCount,
+    required this.lastMotion,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          DDSpacing.xl, DDSpacing.lg, DDSpacing.xl, DDSpacing.sm),
+      child: DDCard(
+        child: Padding(
+          padding: const EdgeInsets.all(DDSpacing.md),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(device.displayName, style: DDTypography.h3),
+                  ),
+                  isLanReachable
+                      ? const DDChip.online()
+                      : const DDChip.offline(),
+                ],
+              ),
+              const SizedBox(height: DDSpacing.sm),
+              Row(
+                children: [
+                  _StatBadge(
+                    icon: Icons.notifications_outlined,
+                    label: '$todayCount today',
+                    color: DDColors.hunterGreen,
+                  ),
+                  const SizedBox(width: DDSpacing.sm),
+                  _StatBadge(
+                    icon: Icons.video_library_outlined,
+                    label: '$clipCount clips',
+                    color: DDColors.textMuted,
+                  ),
+                  if (lastMotion != null) ...[
+                    const SizedBox(width: DDSpacing.sm),
+                    _StatBadge(
+                      icon: Icons.directions_run,
+                      label: _relativeShort(lastMotion!),
+                      color: DDColors.motionIconBg,
+                    ),
+                  ],
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  static String _relativeShort(DateTime dt) {
+    final diff = DateTime.now().difference(dt);
+    if (diff.inMinutes < 60) return '${diff.inMinutes}m ago';
+    if (diff.inHours < 24) return '${diff.inHours}h ago';
+    return '${diff.inDays}d ago';
+  }
+}
+
+class _StatBadge extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final Color color;
+
+  const _StatBadge({
+    required this.icon,
+    required this.label,
+    required this.color,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.10),
+        borderRadius: BorderRadius.circular(DDSpacing.radiusFull),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 13, color: color),
+          const SizedBox(width: 4),
+          Text(label,
+              style: DDTypography.caption.copyWith(
+                color: color,
+                fontWeight: FontWeight.w600,
+                fontSize: 11,
+              )),
+        ],
       ),
     );
   }
@@ -122,8 +272,9 @@ class _DeviceNamePill extends StatelessWidget {
 
 class _EventsList extends StatelessWidget {
   final List<DdEvent> events;
+  final Widget header;
 
-  const _EventsList({required this.events});
+  const _EventsList({required this.events, required this.header});
 
   @override
   Widget build(BuildContext context) {
@@ -139,11 +290,16 @@ class _EventsList extends StatelessWidget {
       sections.last.value.add(event);
     }
 
+    // +1 for the header widget, +1 per section header, +1 per event
+    final totalItems =
+        1 + sections.fold<int>(0, (sum, s) => sum + 1 + s.value.length);
+
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 88),
-      itemCount: sections.fold<int>(0, (sum, s) => sum + 1 + s.value.length),
+      itemCount: totalItems,
       itemBuilder: (context, index) {
-        int i = 0;
+        if (index == 0) return header;
+        int i = 1;
         for (final section in sections) {
           if (index == i) return _SectionHeader(label: section.key);
           i++;
@@ -197,60 +353,66 @@ class _EventTile extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final isDoorbell = event.type == EventType.doorbell;
-    final iconBg = isDoorbell ? DDColors.doorbellEventBg : DDColors.motionEventBg;
+    final accentColor =
+        isDoorbell ? DDColors.doorbellIconBg : DDColors.motionIconBg;
     final icon = isDoorbell ? Icons.doorbell_outlined : Icons.directions_run;
-    final iconColor =
-        isDoorbell ? DDColors.doorbellEventChip : DDColors.motionEventChip;
 
     return InkWell(
       onTap: () => context.push(Routes.eventDetailPath(event.id)),
-      child: Padding(
-        padding: const EdgeInsets.symmetric(
-          horizontal: DDSpacing.xl,
-          vertical: DDSpacing.md,
+      child: Container(
+        decoration: BoxDecoration(
+          border: Border(
+            left: BorderSide(color: accentColor, width: 3),
+          ),
         ),
-        child: Row(
-          children: [
-            Container(
-              width: 44,
-              height: 44,
-              decoration: BoxDecoration(
-                color: iconBg,
-                borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(
+            horizontal: DDSpacing.xl,
+            vertical: DDSpacing.md,
+          ),
+          child: Row(
+            children: [
+              Container(
+                width: 44,
+                height: 44,
+                decoration: BoxDecoration(
+                  color: accentColor,
+                  borderRadius: BorderRadius.circular(DDSpacing.radiusMd),
+                ),
+                child: Icon(icon, color: DDColors.white, size: 22),
               ),
-              child: Icon(icon, color: iconColor, size: 22),
-            ),
-            const SizedBox(width: DDSpacing.md),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
+              const SizedBox(width: DDSpacing.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      event.typeLabel,
+                      style: DDTypography.bodyM
+                          .copyWith(fontWeight: FontWeight.w600),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      _relativeTime(event.timestamp),
+                      style: DDTypography.caption,
+                    ),
+                  ],
+                ),
+              ),
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
-                  Text(
-                    event.typeLabel,
-                    style: DDTypography.bodyM
-                        .copyWith(fontWeight: FontWeight.w600),
-                  ),
-                  const SizedBox(height: 2),
-                  Text(
-                    _relativeTime(event.timestamp),
-                    style: DDTypography.caption,
-                  ),
+                  isDoorbell
+                      ? const DDChip.doorbell()
+                      : const DDChip.motion(),
+                  if (event.clipId != null) ...[
+                    const SizedBox(height: 4),
+                    const DDChip.clipAvailable(),
+                  ],
                 ],
               ),
-            ),
-            Column(
-              crossAxisAlignment: CrossAxisAlignment.end,
-              children: [
-                isDoorbell
-                    ? const DDChip.doorbell()
-                    : const DDChip.motion(),
-                if (event.clipId != null) ...[
-                  const SizedBox(height: 4),
-                  const DDChip.clipAvailable(),
-                ],
-              ],
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );

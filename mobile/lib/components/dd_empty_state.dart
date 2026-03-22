@@ -34,7 +34,8 @@ class DDEmptyState extends StatelessWidget {
   })  : type = DDEmptyStateType.events,
         title = 'No Events Yet',
         message = 'Motion and doorbell events will appear here.',
-        lottiePath = null;
+        lottiePath =
+            'https://assets2.lottiefiles.com/packages/lf20_xl9kpu7e.json';
 
   const DDEmptyState.clips({
     super.key,
@@ -58,7 +59,8 @@ class DDEmptyState extends StatelessWidget {
     this.message,
   })  : type = DDEmptyStateType.error,
         title = 'Something Went Wrong',
-        lottiePath = null;
+        lottiePath =
+            'https://assets9.lottiefiles.com/packages/lf20_qp1q7mct.json';
 
   const DDEmptyState.connecting({
     super.key,
@@ -113,8 +115,16 @@ class DDEmptyState extends StatelessWidget {
   }
 
   Widget _buildAnimation(IconData icon, Color color) {
-    // When a Lottie asset path is provided, use it
     if (lottiePath != null) {
+      if (lottiePath!.startsWith('http')) {
+        return Lottie.network(
+          lottiePath!,
+          width: 160,
+          height: 160,
+          fit: BoxFit.contain,
+          errorBuilder: (_, __, ___) => _iconFallback(icon, color),
+        );
+      }
       return Lottie.asset(
         lottiePath!,
         width: 160,

@@ -2,12 +2,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import 'core/theme/dd_colors.dart';
 import 'core/theme/dd_spacing.dart';
 import 'core/theme/dd_theme.dart';
 import 'core/theme/dd_typography.dart';
 import 'navigation/app_router.dart';
 import 'firebase_options.dart';
+import 'providers/providers.dart';
 
 final _scaffoldMessengerKey = GlobalKey<ScaffoldMessengerState>();
 
@@ -23,6 +25,8 @@ void main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
+  await Hive.initFlutter();
+  await Hive.openBox('settings');
   FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
   runApp(const ProviderScope(child: DingDongApp()));
 }
@@ -42,8 +46,11 @@ class _DingDongAppState extends ConsumerState<DingDongApp> {
   }
 
   void _setupFcm() {
-    // Foreground messages → show styled snackbar via scaffold messenger key
+    // Foreground messages → check quiet hours, then show styled snackbar
     FirebaseMessaging.onMessage.listen((message) {
+      final qhState = ref.read(quietHoursProvider).valueOrNull;
+      if (qhState != null && qhState.isCurrentlyQuiet) return;
+
       final title = message.notification?.title ?? 'DingDong';
       final body = message.notification?.body ?? '';
       _scaffoldMessengerKey.currentState
@@ -99,9 +106,12 @@ class _DingDongAppState extends ConsumerState<DingDongApp> {
   @override
   Widget build(BuildContext context) {
     final router = ref.watch(routerProvider);
+    final themeMode = ref.watch(themeModeProvider);
     return MaterialApp.router(
       title: 'DingDong',
       theme: DDTheme.light,
+      darkTheme: DDTheme.dark,
+      themeMode: themeMode,
       routerConfig: router,
       scaffoldMessengerKey: _scaffoldMessengerKey,
       debugShowCheckedModeBanner: false,

@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/material.dart' show ThemeMode, TimeOfDay;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/clip_model.dart';
@@ -356,3 +357,93 @@ class LanReachabilityNotifier extends Notifier<bool> {
 final lanReachableProvider =
     NotifierProvider<LanReachabilityNotifier, bool>(
         LanReachabilityNotifier.new);
+
+// ─── Theme mode ───────────────────────────────────────────────────────────────
+
+final themeModeProvider = StateProvider<ThemeMode>((ref) => ThemeMode.system);
+
+// ─── Quiet hours ──────────────────────────────────────────────────────────────
+
+class QuietHoursState {
+  final bool enabled;
+  final TimeOfDay start;
+  final TimeOfDay end;
+
+  const QuietHoursState({
+    this.enabled = false,
+    this.start = const TimeOfDay(hour: 22, minute: 0),
+    this.end = const TimeOfDay(hour: 7, minute: 0),
+  });
+
+  QuietHoursState copyWith({
+    bool? enabled,
+    TimeOfDay? start,
+    TimeOfDay? end,
+  }) =>
+      QuietHoursState(
+        enabled: enabled ?? this.enabled,
+        start: start ?? this.start,
+        end: end ?? this.end,
+      );
+
+  /// Returns true if the current time falls within the quiet window.
+  bool get isCurrentlyQuiet {
+    if (!enabled) return false;
+    final now = TimeOfDay.now();
+    final nowMin = now.hour * 60 + now.minute;
+    final startMin = start.hour * 60 + start.minute;
+    final endMin = end.hour * 60 + end.minute;
+    if (startMin <= endMin) {
+      return nowMin >= startMin && nowMin < endMin;
+    } else {
+      // Wraps midnight
+      return nowMin >= startMin || nowMin < endMin;
+    }
+  }
+}
+
+class QuietHoursNotifier extends AsyncNotifier<QuietHoursState> {
+  @override
+  Future<QuietHoursState> build() async {
+    final device = ref.watch(deviceProvider);
+    try {
+      final doc = await FirebaseFirestore.instance
+          .collection('devices')
+          .doc(device.deviceId)
+          .get();
+      if (!doc.exists) return const QuietHoursState();
+      final data = doc.data()!;
+      return QuietHoursState(
+        enabled: (data['quietHoursEnabled'] as bool?) ?? false,
+        start: _minutesToTime((data['quietHoursStart'] as int?) ?? 22 * 60),
+        end: _minutesToTime((data['quietHoursEnd'] as int?) ?? 7 * 60),
+      );
+    } catch (_) {
+      return const QuietHoursState();
+    }
+  }
+
+  Future<void> save(QuietHoursState updated) async {
+    state = AsyncData(updated);
+    final device = ref.read(deviceProvider);
+    try {
+      await FirebaseFirestore.instance
+          .collection('devices')
+          .doc(device.deviceId)
+          .update({
+        'quietHoursEnabled': updated.enabled,
+        'quietHoursStart': updated.start.hour * 60 + updated.start.minute,
+        'quietHoursEnd': updated.end.hour * 60 + updated.end.minute,
+      });
+    } catch (_) {
+      // Non-fatal — Firestore may not have this field yet; ignore
+    }
+  }
+
+  static TimeOfDay _minutesToTime(int minutes) =>
+      TimeOfDay(hour: minutes ~/ 60, minute: minutes % 60);
+}
+
+final quietHoursProvider =
+    AsyncNotifierProvider<QuietHoursNotifier, QuietHoursState>(
+        QuietHoursNotifier.new);

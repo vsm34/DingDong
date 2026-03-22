@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:lottie/lottie.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../components/dd_logo.dart';
 import '../../../components/dd_loading_indicator.dart';
@@ -8,9 +9,8 @@ import '../../../navigation/app_router.dart';
 import '../../../providers/providers.dart';
 
 /// /splash — Full white background.
-/// DingDong logo hero size centered vertically at 40% from top.
-/// DDLoadingIndicator lg beneath logo.
-/// Auto-navigates after auth state check.
+/// DingDong logo hero size centered at 30% from top.
+/// Lottie doorbell animation beneath logo; falls back to DDLoadingIndicator.
 /// 200ms scale-in animation (0.8 → 1.0, ease-out).
 class SplashScreen extends ConsumerStatefulWidget {
   const SplashScreen({super.key});
@@ -23,6 +23,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _scaleAnim;
+
+  static const _lottieUrl =
+      'https://assets2.lottiefiles.com/packages/lf20_myejiggj.json';
 
   @override
   void initState() {
@@ -45,7 +48,7 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
   }
 
   Future<void> _navigate() async {
-    await Future.delayed(const Duration(milliseconds: 1800));
+    await Future.delayed(const Duration(milliseconds: 2200));
     if (!mounted) return;
     final auth = ref.read(authProvider);
     if (auth.isAuthenticated) {
@@ -61,9 +64,9 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
       backgroundColor: DDColors.white,
       body: Stack(
         children: [
-          // Logo positioned at ~40% from top
+          // Logo positioned at ~30% from top
           Positioned(
-            top: MediaQuery.of(context).size.height * 0.30,
+            top: MediaQuery.of(context).size.height * 0.28,
             left: 0,
             right: 0,
             child: ScaleTransition(
@@ -73,13 +76,25 @@ class _SplashScreenState extends ConsumerState<SplashScreen>
               ),
             ),
           ),
-          // Loading indicator below logo
+          // Lottie animation below logo, with fallback
           Positioned(
-            top: MediaQuery.of(context).size.height * 0.30 + 120,
+            top: MediaQuery.of(context).size.height * 0.28 + 130,
             left: 0,
             right: 0,
-            child: const Center(
-              child: DDLoadingIndicator(size: DDLoadingSize.lg),
+            child: Center(
+              child: SizedBox(
+                width: 80,
+                height: 80,
+                child: Lottie.network(
+                  _lottieUrl,
+                  width: 80,
+                  height: 80,
+                  fit: BoxFit.contain,
+                  errorBuilder: (_, __, ___) => const DDLoadingIndicator(
+                    size: DDLoadingSize.lg,
+                  ),
+                ),
+              ),
             ),
           ),
         ],
