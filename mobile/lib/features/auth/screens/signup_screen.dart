@@ -10,7 +10,6 @@ import '../../../core/theme/dd_typography.dart';
 import '../../../components/dd_button.dart';
 import '../../../components/dd_text_field.dart';
 import '../../../components/dd_logo.dart';
-import '../../../navigation/app_router.dart';
 import '../../../providers/providers.dart';
 
 /// /signup — Same full-bleed background as login.
@@ -69,7 +68,6 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             _passwordCtrl.text,
             _nameCtrl.text.trim(),
           );
-      if (mounted) context.go(Routes.homeEvents);
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         setState(() {

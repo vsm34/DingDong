@@ -175,7 +175,7 @@ final routerProvider = Provider<GoRouter>((ref) {
             Hive.box('settings').get('onboarding_skipped') == true;
         if (skipped) return Routes.homeEvents;
         if (membershipAsync.isLoading) return null;
-        if (membershipAsync.hasError) return Routes.homeEvents;
+        if (membershipAsync.hasError) return Routes.onboardWelcome;
         if (membershipAsync.valueOrNull == false) return Routes.onboardWelcome;
         return Routes.homeEvents;
       }

@@ -91,17 +91,21 @@ class AuthNotifier extends Notifier<AuthState> {
       String email, String password, String displayName) async {
     final credential = await FirebaseAuth.instance
         .createUserWithEmailAndPassword(email: email, password: password);
-    await credential.user!.updateDisplayName(displayName);
-    await FirebaseFirestore.instance
-        .collection('users')
-        .doc(credential.user!.uid)
-        .set({
-      'email': email,
-      'displayName': displayName,
-      'createdAt': FieldValue.serverTimestamp(),
-      'fcmTokens': <String>[],
-    });
-    await _registerFcmToken(credential.user!.uid);
+    try {
+      await credential.user!.updateDisplayName(displayName);
+      await FirebaseFirestore.instance
+          .collection('users')
+          .doc(credential.user!.uid)
+          .set({
+        'email': email,
+        'displayName': displayName,
+        'createdAt': FieldValue.serverTimestamp(),
+        'fcmTokens': <String>[],
+      });
+      await _registerFcmToken(credential.user!.uid);
+    } catch (_) {
+      // Non-fatal — Auth account is created; profile and FCM can be retried later
+    }
   }
 
   Future<void> sendPasswordReset(String email) async {
@@ -455,8 +459,11 @@ final deviceMembershipProvider = FutureProvider<bool>((ref) async {
         .limit(1)
         .get();
     return snap.docs.isNotEmpty;
+  } on FirebaseException catch (e) {
+    if (e.code == 'permission-denied') return false;
+    return false;
   } catch (_) {
-    return true; // Fail open — avoid false onboarding redirects
+    return false;
   }
 });
 

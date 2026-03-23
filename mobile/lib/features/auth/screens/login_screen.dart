@@ -63,7 +63,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       await ref
           .read(authProvider.notifier)
           .signIn(_emailCtrl.text.trim(), _passwordCtrl.text);
-      if (mounted) context.go(Routes.homeEvents);
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         setState(() {
