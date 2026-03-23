@@ -146,9 +146,9 @@ List<RouteBase> get _routes => [
     ];
 
 /// routerProvider — single source of truth for navigation.
-/// Auth redirect is wired here: unauthenticated users go to /login,
-/// authenticated users cannot reach /login or /signup.
-/// Device membership redirect: authenticated users with no device go to onboarding.
+/// Auth redirect is wired here: unauthenticated users go to /login.
+/// Device membership redirect: authenticated users with no device and no skip
+/// flag are sent to onboarding from any non-splash, non-onboarding screen.
 final routerProvider = Provider<GoRouter>((ref) {
   final authState = ref.watch(authProvider);
   final membershipAsync = ref.watch(deviceMembershipProvider);
@@ -160,27 +160,29 @@ final routerProvider = Provider<GoRouter>((ref) {
       final isAuth = authState.isAuthenticated;
       final path = state.uri.path;
       final isSplash = path == Routes.splash;
-      final isAuthRoute = path == Routes.login || path == Routes.signup;
+      final isOnboarding = path.startsWith('/onboard');
 
       // Splash handles its own navigation — never intercept
       if (isSplash) return null;
 
       // Priority 1: Not authenticated → always go to login
-      // Onboarding is only for authenticated users.
       if (!isAuth) return Routes.login;
 
-      // Priority 2: Authenticated + on an auth screen → device membership check
-      if (isAuthRoute) {
-        final skipped =
-            Hive.box('settings').get('onboarding_skipped') == true;
-        if (skipped) return Routes.homeEvents;
-        if (membershipAsync.isLoading) return null;
-        if (membershipAsync.hasError) return Routes.onboardWelcome;
-        if (membershipAsync.valueOrNull == false) return Routes.onboardWelcome;
-        return Routes.homeEvents;
-      }
+      // Onboarding screens handle their own flow — never redirect mid-flow
+      if (isOnboarding) return null;
 
-      // Priority 3: Authenticated + on any other screen → stay put
+      // Priority 2: Authenticated + onboarding already skipped → stay wherever
+      final skipped =
+          Hive.box('settings').get('onboarding_skipped') == true;
+      if (skipped) return null;
+
+      // Priority 3: Authenticated + membership loading → wait
+      if (membershipAsync.isLoading) return null;
+
+      // Priority 4: Authenticated + no device + not on onboarding → onboarding
+      if (membershipAsync.valueOrNull == false) return Routes.onboardWelcome;
+
+      // Priority 5: Authenticated + has device → stay wherever
       return null;
     },
     routes: _routes,

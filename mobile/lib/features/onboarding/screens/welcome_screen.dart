@@ -73,7 +73,7 @@ class WelcomeScreen extends StatelessWidget {
                     Center(
                       child: TextButton(
                         onPressed: () {
-                          Hive.box('settings').put('onboarding_skipped', true);
+                          Hive.box('settings').delete('onboarding_skipped');
                           context.go(Routes.homeEvents);
                         },
                         child: Text(

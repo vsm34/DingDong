@@ -1,25 +1,93 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../core/theme/dd_spacing.dart';
 import '../../../core/theme/dd_typography.dart';
+import '../../../components/dd_bottom_sheet.dart';
+import '../../../components/dd_button.dart';
 import '../../../components/dd_chip.dart';
+import '../../../components/dd_list_tile.dart';
 import '../../../components/dd_logo.dart';
+import '../../../components/dd_toast.dart';
 import '../../../navigation/app_router.dart';
 import '../../../providers/providers.dart';
 
 /// /home/settings — Settings tab.
-/// Account card (avatar, name, email, arrow). Device card (name, chip, fw, link).
-/// App section: About, Help, version.
-class HomeSettingsScreen extends ConsumerWidget {
+/// DEVICE section (Add Device, Remove Device), account card, device card, app section.
+class HomeSettingsScreen extends ConsumerStatefulWidget {
   const HomeSettingsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeSettingsScreen> createState() => _HomeSettingsScreenState();
+}
+
+class _HomeSettingsScreenState extends ConsumerState<HomeSettingsScreen> {
+  Future<void> _removeDevice() async {
+    final device = ref.read(deviceProvider);
+    final uid = ref.read(authProvider).user!.uid;
+    try {
+      await FirebaseFirestore.instance
+          .collection('deviceMembers')
+          .doc('${device.deviceId}_$uid')
+          .delete();
+      Hive.box('settings').delete('onboarding_skipped');
+      ref.invalidate(deviceMembershipProvider);
+      if (mounted) {
+        DDToast.success(context, 'Device removed');
+        context.go(Routes.onboardWelcome);
+      }
+    } catch (_) {
+      // Non-fatal — let the sheet reset its loading state
+    }
+  }
+
+  void _showRemoveDeviceSheet() {
+    var removing = false;
+    DDBottomSheet.show<void>(
+      context: context,
+      title: 'Remove Device',
+      child: StatefulBuilder(
+        builder: (ctx, setSS) => Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'This will unpair your DingDong device. You can re-add it at any time.',
+              style: DDTypography.bodyM.copyWith(color: DDColors.textMuted),
+            ),
+            const SizedBox(height: DDSpacing.lg),
+            DDButton.destructive(
+              label: 'Remove Device',
+              isLoading: removing,
+              onPressed: removing
+                  ? null
+                  : () async {
+                      setSS(() => removing = true);
+                      await _removeDevice();
+                      if (ctx.mounted) setSS(() => removing = false);
+                    },
+            ),
+            const SizedBox(height: DDSpacing.sm),
+            DDButton.secondary(
+              label: 'Cancel',
+              onPressed: () => Navigator.of(ctx).pop(),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final auth = ref.watch(authProvider);
     final device = ref.watch(deviceProvider);
     final isLanReachable = ref.watch(lanReachableProvider);
+    final membershipAsync = ref.watch(deviceMembershipProvider);
+    final hasDevice = membershipAsync.valueOrNull == true;
 
     return Scaffold(
       backgroundColor: DDColors.white,
@@ -32,6 +100,34 @@ class HomeSettingsScreen extends ConsumerWidget {
       ),
       body: ListView(
         children: [
+          // DEVICE section
+          const _SectionHeader(label: 'DEVICE'),
+          DDListTile(
+            leading: const Icon(
+              Icons.add_circle_outline,
+              color: Color(0xFF355E3B),
+            ),
+            title: 'Add Device',
+            subtitle: 'Pair a new DingDong device',
+            onTap: () => context.push(Routes.onboardWelcome),
+            showDivider: hasDevice,
+          ),
+          if (hasDevice)
+            DDListTile(
+              leading: const Icon(
+                Icons.delete_outline,
+                color: Color(0xFFDC2626),
+              ),
+              title: 'Remove Device',
+              subtitle: 'Unpair this device from your account',
+              onTap: _showRemoveDeviceSheet,
+              showDivider: false,
+            ),
+          const Divider(
+            height: 0.5,
+            thickness: 0.5,
+            color: DDColors.borderDefault,
+          ),
           // Account card
           _SettingsCard(
             child: Row(
@@ -151,6 +247,28 @@ class HomeSettingsScreen extends ConsumerWidget {
     if (parts.isEmpty || parts[0].isEmpty) return '?';
     if (parts.length == 1) return parts[0][0].toUpperCase();
     return '${parts[0][0]}${parts[parts.length - 1][0]}'.toUpperCase();
+  }
+}
+
+class _SectionHeader extends StatelessWidget {
+  final String label;
+
+  const _SectionHeader({required this.label});
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(
+          DDSpacing.xl, DDSpacing.lg, DDSpacing.xl, DDSpacing.xs),
+      child: Text(
+        label,
+        style: DDTypography.caption.copyWith(
+          color: DDColors.textMuted,
+          letterSpacing: 0.8,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
 }
 

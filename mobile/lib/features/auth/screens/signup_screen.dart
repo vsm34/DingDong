@@ -68,6 +68,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             _passwordCtrl.text,
             _nameCtrl.text.trim(),
           );
+      if (mounted) setState(() => _isLoading = false);
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         setState(() {
