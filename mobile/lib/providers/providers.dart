@@ -82,36 +82,26 @@ class AuthNotifier extends Notifier<AuthState> {
   }
 
   Future<void> signIn(String email, String password) async {
-    state = const AuthState(isLoading: true);
-    try {
-      final credential = await FirebaseAuth.instance
-          .signInWithEmailAndPassword(email: email, password: password);
-      await _registerFcmToken(credential.user!.uid);
-    } on FirebaseAuthException catch (e) {
-      state = AuthState(error: e.message);
-    }
+    final credential = await FirebaseAuth.instance
+        .signInWithEmailAndPassword(email: email, password: password);
+    await _registerFcmToken(credential.user!.uid);
   }
 
   Future<void> signUp(
       String email, String password, String displayName) async {
-    state = const AuthState(isLoading: true);
-    try {
-      final credential = await FirebaseAuth.instance
-          .createUserWithEmailAndPassword(email: email, password: password);
-      await credential.user!.updateDisplayName(displayName);
-      await FirebaseFirestore.instance
-          .collection('users')
-          .doc(credential.user!.uid)
-          .set({
-        'email': email,
-        'displayName': displayName,
-        'createdAt': FieldValue.serverTimestamp(),
-        'fcmTokens': <String>[],
-      });
-      await _registerFcmToken(credential.user!.uid);
-    } on FirebaseAuthException catch (e) {
-      state = AuthState(error: e.message);
-    }
+    final credential = await FirebaseAuth.instance
+        .createUserWithEmailAndPassword(email: email, password: password);
+    await credential.user!.updateDisplayName(displayName);
+    await FirebaseFirestore.instance
+        .collection('users')
+        .doc(credential.user!.uid)
+        .set({
+      'email': email,
+      'displayName': displayName,
+      'createdAt': FieldValue.serverTimestamp(),
+      'fcmTokens': <String>[],
+    });
+    await _registerFcmToken(credential.user!.uid);
   }
 
   Future<void> sendPasswordReset(String email) async {

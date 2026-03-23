@@ -159,31 +159,28 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final isAuth = authState.isAuthenticated;
       final path = state.uri.path;
-
-      final isAuthRoute = path == Routes.login || path == Routes.signup;
       final isSplash = path == Routes.splash;
-      final isOnboarding = path.startsWith('/onboard');
+      final isAuthRoute = path == Routes.login || path == Routes.signup;
 
-      // Splash handles its own navigation
+      // Splash handles its own navigation — never intercept
       if (isSplash) return null;
-      // Onboarding always accessible
-      if (isOnboarding) return null;
-      // Unauthenticated → send to login
-      if (!isAuth && !isAuthRoute) return Routes.login;
-      // Authenticated → cannot visit auth screens
-      if (isAuth && isAuthRoute) return Routes.homeEvents;
 
-      // Below: user is authenticated and not on an auth/onboarding route
-      // Check onboarding_skipped first — skipped users go straight to home
-      final skipped =
-          Hive.box('settings').get('onboarding_skipped') == true;
-      if (skipped) return null;
+      // Priority 1: Not authenticated → always go to login
+      // Onboarding is only for authenticated users.
+      if (!isAuth) return Routes.login;
 
-      // Device membership check
-      if (membershipAsync.isLoading) return null; // Stay put while loading
-      if (membershipAsync.hasError) return null;  // Fail open on error
-      if (membershipAsync.valueOrNull == false) return Routes.onboardWelcome;
+      // Priority 2: Authenticated + on an auth screen → device membership check
+      if (isAuthRoute) {
+        final skipped =
+            Hive.box('settings').get('onboarding_skipped') == true;
+        if (skipped) return Routes.homeEvents;
+        if (membershipAsync.isLoading) return null;
+        if (membershipAsync.hasError) return Routes.homeEvents;
+        if (membershipAsync.valueOrNull == false) return Routes.onboardWelcome;
+        return Routes.homeEvents;
+      }
 
+      // Priority 3: Authenticated + on any other screen → stay put
       return null;
     },
     routes: _routes,

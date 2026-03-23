@@ -45,7 +45,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       case 'user-not-found':
         return 'No account found with this email.';
       case 'too-many-requests':
-        return 'Too many failed attempts. Please try again later.';
+        return 'Too many failed attempts. Try again later.';
       case 'user-disabled':
         return 'This account has been disabled.';
       default:
@@ -82,8 +82,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   void _showPasswordReset(BuildContext context) {
-    final emailCtrl =
-        TextEditingController(text: _emailCtrl.text.trim());
+    final emailCtrl = TextEditingController(text: _emailCtrl.text.trim());
     var isSending = false;
     DDBottomSheet.show(
       context: context,
@@ -142,38 +141,48 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   }
 
   Widget _buildCard(Widget child) {
+    const radius = BorderRadius.all(Radius.circular(16));
     if (kIsWeb) {
-      return ClipRRect(
-        borderRadius: BorderRadius.circular(16),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.88),
-            borderRadius: BorderRadius.circular(16),
-            border: Border.all(
-                color: Colors.white.withValues(alpha: 0.3), width: 1),
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withValues(alpha: 0.15),
-                blurRadius: 24,
+      return ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 480),
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: 20),
+          child: ClipRRect(
+            borderRadius: radius,
+            child: Container(
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+              decoration: BoxDecoration(
+                color: Colors.white.withValues(alpha: 0.72),
+                borderRadius: radius,
+                border: Border.all(
+                    color: Colors.white.withValues(alpha: 0.4), width: 1),
+                boxShadow: [
+                  BoxShadow(
+                    color: Colors.black.withValues(alpha: 0.15),
+                    blurRadius: 24,
+                  ),
+                ],
               ),
-            ],
+              child: child,
+            ),
           ),
-          child: child,
         ),
       );
     }
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(16),
-      child: BackdropFilter(
-        filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-        child: Container(
-          padding: const EdgeInsets.all(24),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.75),
-            borderRadius: BorderRadius.circular(16),
+    return ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 480),
+      child: ClipRRect(
+        borderRadius: radius,
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 20),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.65),
+              borderRadius: radius,
+            ),
+            child: child,
           ),
-          child: child,
         ),
       ),
     );
@@ -201,8 +210,11 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               child: Column(
                 children: [
                   const SizedBox(height: 64),
-                  // White logo
-                  const DDLogo.white(showWordmark: true),
+                  // White logo — 10% smaller
+                  Transform.scale(
+                    scale: 0.9,
+                    child: const DDLogo.white(showWordmark: true),
+                  ),
                   const SizedBox(height: 12),
                   // Tagline
                   Text(
@@ -234,6 +246,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             controller: _emailCtrl,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
+                            onChanged: (_) =>
+                                setState(() => _errorMessage = null),
                             validator: (v) {
                               if (v == null || v.isEmpty) {
                                 return 'Email is required';
@@ -252,6 +266,8 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             obscureText: true,
                             textInputAction: TextInputAction.done,
                             onSubmitted: (_) => _signIn(),
+                            onChanged: (_) =>
+                                setState(() => _errorMessage = null),
                             validator: (v) {
                               if (v == null || v.length < 8) {
                                 return 'Password must be at least 8 characters';
@@ -259,15 +275,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                               return null;
                             },
                           ),
-                          if (_errorMessage != null) ...[
-                            const SizedBox(height: DDSpacing.sm),
-                            Text(
-                              _errorMessage!,
-                              style: DDTypography.caption.copyWith(
-                                color: const Color(0xFFDC2626),
+                          if (_errorMessage != null)
+                            Padding(
+                              padding: const EdgeInsets.only(top: 8),
+                              child: Text(
+                                _errorMessage!,
+                                style: DDTypography.caption.copyWith(
+                                  color: const Color(0xFFDC2626),
+                                ),
                               ),
                             ),
-                          ],
                           const SizedBox(height: DDSpacing.sm),
                           Align(
                             alignment: Alignment.centerRight,

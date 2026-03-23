@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:hive_flutter/hive_flutter.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../core/theme/dd_spacing.dart';
@@ -107,7 +108,8 @@ class DebugScreen extends ConsumerWidget {
             onPressed: () {
               Hive.box('settings').delete('onboarding_skipped');
               ref.invalidate(deviceMembershipProvider);
-              DDToast.info(context, 'Onboarding reset. Restart or navigate to trigger redirect.');
+              DDToast.info(context, 'Onboarding reset.');
+              context.go('/home/events');
             },
           ),
           const SizedBox(height: DDSpacing.xl),
