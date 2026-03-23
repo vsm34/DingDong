@@ -57,6 +57,7 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }
 
   Future<void> _createAccount() async {
+    if (_formKey.currentState == null) return;
     if (!_formKey.currentState!.validate()) return;
     setState(() {
       _isLoading = true;
@@ -68,21 +69,20 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
             _passwordCtrl.text,
             _nameCtrl.text.trim(),
           );
-      if (mounted) setState(() => _isLoading = false);
     } on FirebaseAuthException catch (e) {
       if (mounted) {
         setState(() {
-          _isLoading = false;
           _errorMessage = _mapAuthError(e.code);
         });
       }
     } catch (_) {
       if (mounted) {
         setState(() {
-          _isLoading = false;
           _errorMessage = 'Account creation failed. Please try again.';
         });
       }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
     }
   }
 
