@@ -165,8 +165,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       // Splash handles its own navigation — never intercept
       if (isSplash) return null;
 
-      // Priority 1: Not authenticated → always go to login
-      if (!isAuth) return Routes.login;
+      // Priority 1: Not authenticated → allow auth screens, redirect elsewhere to login
+      final isAuthRoute = path == Routes.login || path == Routes.signup;
+      if (!isAuth) return isAuthRoute ? null : Routes.login;
 
       // Onboarding screens handle their own flow — never redirect mid-flow
       if (isOnboarding) return null;
