@@ -21,7 +21,6 @@ class SignUpScreen extends ConsumerStatefulWidget {
 }
 
 class _SignUpScreenState extends ConsumerState<SignUpScreen> {
-  final _formKey = GlobalKey<FormState>();
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
@@ -57,15 +56,35 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
   }
 
   Future<void> _createAccount() async {
-    if (_formKey.currentState == null) return;
-    if (!_formKey.currentState!.validate()) return;
+    // Manual validation — bypasses Flutter web form validator rebuild bug
+    if (_nameCtrl.text.trim().isEmpty) {
+      setState(() => _errorMessage = 'Name is required');
+      return;
+    }
+    final emailText = _emailCtrl.text.trim();
+    if (emailText.isEmpty) {
+      setState(() => _errorMessage = 'Email is required');
+      return;
+    } else if (!RegExp(r'^[^@]+@[^@]+\.[^@]+$').hasMatch(emailText)) {
+      setState(() => _errorMessage = 'Enter a valid email address');
+      return;
+    }
+    if (_passwordCtrl.text.length < 8) {
+      setState(() => _errorMessage = 'Password must be at least 8 characters');
+      return;
+    }
+    if (_confirmCtrl.text != _passwordCtrl.text) {
+      setState(() => _errorMessage = 'Passwords do not match');
+      return;
+    }
+
     setState(() {
       _isLoading = true;
       _errorMessage = null;
     });
     try {
       await ref.read(authProvider.notifier).signUp(
-            _emailCtrl.text.trim(),
+            emailText,
             _passwordCtrl.text,
             _nameCtrl.text.trim(),
           );
@@ -164,102 +183,71 @@ class _SignUpScreenState extends ConsumerState<SignUpScreen> {
                   const SizedBox(height: 36),
                   // Frosted glass card (web-safe)
                   _buildCard(
-                    Form(
-                      key: _formKey,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text('Create account', style: DDTypography.h1),
-                          const SizedBox(height: DDSpacing.sm),
-                          Text(
-                            'Start protecting your home today',
-                            style: DDTypography.bodyM
-                                .copyWith(color: DDColors.textMuted),
-                          ),
-                          const SizedBox(height: DDSpacing.xl),
-                          DDTextField(
-                            label: 'Display Name',
-                            hint: 'Your name',
-                            controller: _nameCtrl,
-                            textInputAction: TextInputAction.next,
-                            onChanged: (_) =>
-                                setState(() => _errorMessage = null),
-                            validator: (v) {
-                              if (v == null || v.trim().isEmpty) {
-                                return 'Name is required';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: DDSpacing.md),
-                          DDTextField(
-                            label: 'Email',
-                            hint: 'you@example.com',
-                            controller: _emailCtrl,
-                            keyboardType: TextInputType.emailAddress,
-                            textInputAction: TextInputAction.next,
-                            onChanged: (_) =>
-                                setState(() => _errorMessage = null),
-                            validator: (v) {
-                              if (v == null || v.isEmpty) {
-                                return 'Email is required';
-                              }
-                              final re = RegExp(r'^[^@]+@[^@]+\.[^@]+$');
-                              if (!re.hasMatch(v)) {
-                                return 'Enter a valid email';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: DDSpacing.md),
-                          DDTextField(
-                            label: 'Password',
-                            controller: _passwordCtrl,
-                            obscureText: true,
-                            textInputAction: TextInputAction.next,
-                            onChanged: (_) =>
-                                setState(() => _errorMessage = null),
-                            validator: (v) {
-                              if (v == null || v.length < 8) {
-                                return 'Password must be at least 8 characters';
-                              }
-                              return null;
-                            },
-                          ),
-                          const SizedBox(height: DDSpacing.md),
-                          DDTextField(
-                            label: 'Confirm Password',
-                            controller: _confirmCtrl,
-                            obscureText: true,
-                            textInputAction: TextInputAction.done,
-                            onSubmitted: (_) => _createAccount(),
-                            onChanged: (_) =>
-                                setState(() => _errorMessage = null),
-                            validator: (v) {
-                              if (v != _passwordCtrl.text) {
-                                return 'Passwords do not match';
-                              }
-                              return null;
-                            },
-                          ),
-                          if (_errorMessage != null)
-                            Padding(
-                              padding: const EdgeInsets.only(top: 8),
-                              child: Text(
-                                _errorMessage!,
-                                style: DDTypography.caption.copyWith(
-                                  color: const Color(0xFFDC2626),
-                                ),
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('Create account', style: DDTypography.h1),
+                        const SizedBox(height: DDSpacing.sm),
+                        Text(
+                          'Start protecting your home today',
+                          style: DDTypography.bodyM
+                              .copyWith(color: DDColors.textMuted),
+                        ),
+                        const SizedBox(height: DDSpacing.xl),
+                        DDTextField(
+                          label: 'Display Name',
+                          hint: 'Your name',
+                          controller: _nameCtrl,
+                          textInputAction: TextInputAction.next,
+                          onChanged: (_) =>
+                              setState(() => _errorMessage = null),
+                        ),
+                        const SizedBox(height: DDSpacing.md),
+                        DDTextField(
+                          label: 'Email',
+                          hint: 'you@example.com',
+                          controller: _emailCtrl,
+                          keyboardType: TextInputType.emailAddress,
+                          textInputAction: TextInputAction.next,
+                          onChanged: (_) =>
+                              setState(() => _errorMessage = null),
+                        ),
+                        const SizedBox(height: DDSpacing.md),
+                        DDTextField(
+                          label: 'Password',
+                          controller: _passwordCtrl,
+                          obscureText: true,
+                          textInputAction: TextInputAction.next,
+                          onChanged: (_) =>
+                              setState(() => _errorMessage = null),
+                        ),
+                        const SizedBox(height: DDSpacing.md),
+                        DDTextField(
+                          label: 'Confirm Password',
+                          controller: _confirmCtrl,
+                          obscureText: true,
+                          textInputAction: TextInputAction.done,
+                          onSubmitted: (_) => _createAccount(),
+                          onChanged: (_) =>
+                              setState(() => _errorMessage = null),
+                        ),
+                        if (_errorMessage != null)
+                          Padding(
+                            padding: const EdgeInsets.only(top: 8),
+                            child: Text(
+                              _errorMessage!,
+                              style: DDTypography.caption.copyWith(
+                                color: const Color(0xFFDC2626),
                               ),
                             ),
-                          const SizedBox(height: DDSpacing.lg),
-                          DDButton.primary(
-                            label: 'Create Account',
-                            onPressed: _isLoading ? null : _createAccount,
-                            isLoading: _isLoading,
                           ),
-                        ],
-                      ),
+                        const SizedBox(height: DDSpacing.lg),
+                        DDButton.primary(
+                          label: 'Create Account',
+                          onPressed: _isLoading ? null : _createAccount,
+                          isLoading: _isLoading,
+                        ),
+                      ],
                     ),
                   ),
                   const SizedBox(height: DDSpacing.lg),
