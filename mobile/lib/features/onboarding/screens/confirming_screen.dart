@@ -6,6 +6,7 @@ import 'package:lottie/lottie.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../core/theme/dd_spacing.dart';
 import '../../../core/theme/dd_typography.dart';
+import '../../../components/dd_bottom_sheet.dart';
 import '../../../components/dd_button.dart';
 import '../../../components/dd_toast.dart';
 import '../../../navigation/app_router.dart';
@@ -13,7 +14,7 @@ import '../../../providers/providers.dart';
 
 /// /onboard/confirming — Step 4/5
 /// Lottie spinner (120px), auto-advances when provisioning completes.
-/// Error state: DDToast error + "Try Again" button if timeout > 60s.
+/// Error state: shows troubleshooting DDBottomSheet with retry option.
 class ConfirmingScreen extends ConsumerStatefulWidget {
   const ConfirmingScreen({super.key});
 
@@ -47,8 +48,62 @@ class _ConfirmingScreenState extends ConsumerState<ConfirmingScreen> {
 
   void _handleTimeout() {
     setState(() => _timedOut = true);
-    DDToast.error(context,
-        'Connection failed. Ensure your Wi-Fi is 2.4GHz and password is correct.');
+    _showTroubleshootingSheet();
+  }
+
+  void _showTroubleshootingSheet() {
+    DDBottomSheet.show<void>(
+      context: context,
+      title: 'Connection failed',
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Try these steps to reconnect:',
+            style: DDTypography.bodyM.copyWith(color: DDColors.textMuted),
+          ),
+          const SizedBox(height: DDSpacing.md),
+          ...[
+            '1. Make sure your Wi-Fi password is correct',
+            '2. Ensure you\'re connecting to a 2.4GHz network (not 5GHz)',
+            '3. Move your phone closer to the router',
+            '4. Try unplugging and replugging the DingDong device',
+          ].map((step) => Padding(
+                padding: const EdgeInsets.only(bottom: DDSpacing.sm),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Icon(Icons.circle,
+                        size: 6,
+                        color: DDColors.hunterGreen),
+                    const SizedBox(width: DDSpacing.sm),
+                    Expanded(
+                      child: Text(step,
+                          style: DDTypography.bodyM),
+                    ),
+                  ],
+                ),
+              )),
+          const SizedBox(height: DDSpacing.lg),
+          DDButton.primary(
+            label: 'Try Again',
+            onPressed: () {
+              Navigator.of(context).pop();
+              _startProvisioning();
+            },
+          ),
+          const SizedBox(height: DDSpacing.sm),
+          DDButton.secondary(
+            label: 'Contact Support',
+            onPressed: () {
+              Navigator.of(context).pop();
+              DDToast.success(context, 'Visit dingdong.app/support for help');
+            },
+          ),
+        ],
+      ),
+    );
   }
 
   @override
@@ -105,6 +160,11 @@ class _ConfirmingScreenState extends ConsumerState<ConfirmingScreen> {
                 DDButton.primary(
                   label: 'Try Again',
                   onPressed: _startProvisioning,
+                ),
+                const SizedBox(height: DDSpacing.sm),
+                DDButton.secondary(
+                  label: 'Show Troubleshooting',
+                  onPressed: _showTroubleshootingSheet,
                 ),
               ],
               const Spacer(),

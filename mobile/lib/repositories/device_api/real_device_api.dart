@@ -9,34 +9,35 @@ import '../../models/device_settings_model.dart';
 import '../../models/event_model.dart';
 import 'device_api.dart';
 
-/// Real DeviceApi — calls the ESP32 via mDNS URL using Dio.
+/// Real DeviceApi — calls the ESP32 via mDNS URL (or optional tunnel URL) using Dio.
 /// - 5 second timeout on all calls
 /// - 2 retries with exponential backoff on network/server errors (not 4xx)
 /// - Bearer token read from flutter_secure_storage
-/// - Stream URL: http://dingdong-<deviceId>.local/api/v1/stream
+/// - Stream URL: <baseUrl>/stream
 class RealDeviceApi implements DeviceApi {
   final String deviceId;
 
   static const _tokenKey = 'device_api_token';
-  static const _apiPath = '/api/v1';
   static const _maxRetries = 2;
 
   final FlutterSecureStorage _storage;
   late final Dio _dio;
+  late final String _effectiveBaseUrl;
 
-  RealDeviceApi({required this.deviceId})
+  RealDeviceApi({required this.deviceId, String? baseUrl})
       : _storage = const FlutterSecureStorage() {
+    _effectiveBaseUrl = baseUrl != null
+        ? '$baseUrl/api/v1'
+        : 'http://dingdong-$deviceId.local/api/v1';
     _dio = Dio(
       BaseOptions(
-        baseUrl: _baseUrl,
+        baseUrl: _effectiveBaseUrl,
         connectTimeout: const Duration(seconds: 5),
         receiveTimeout: const Duration(seconds: 5),
         sendTimeout: const Duration(seconds: 5),
       ),
     );
   }
-
-  String get _baseUrl => 'http://dingdong-$deviceId.local$_apiPath';
 
   Future<String?> _readToken() => _storage.read(key: _tokenKey);
 
@@ -143,8 +144,7 @@ class RealDeviceApi implements DeviceApi {
       });
 
   @override
-  String getStreamUrl() =>
-      'http://dingdong-$deviceId.local$_apiPath/stream';
+  String getStreamUrl() => '$_effectiveBaseUrl/stream';
 
   @override
   Future<Map<String, String>> getRequestHeaders() async {

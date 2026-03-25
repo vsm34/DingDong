@@ -3,6 +3,7 @@ class DeviceSettings {
   final bool notifyEnabled;
   final int mmwaveThreshold;
   final int clipLengthSec;
+  final List<Map<String, double>> privacyZones;
 
   static const List<int> validClipLengths = [5, 10, 20, 30];
 
@@ -11,6 +12,7 @@ class DeviceSettings {
     required this.notifyEnabled,
     required this.mmwaveThreshold,
     required this.clipLengthSec,
+    this.privacyZones = const [],
   });
 
   factory DeviceSettings.defaults() => const DeviceSettings(
@@ -25,6 +27,11 @@ class DeviceSettings {
         notifyEnabled: json['notifyEnabled'] as bool,
         mmwaveThreshold: json['mmwaveThreshold'] as int,
         clipLengthSec: json['clipLengthSec'] as int,
+        privacyZones: (json['privacyZones'] as List<dynamic>?)
+                ?.map((z) => Map<String, double>.from(
+                    (z as Map).map((k, v) => MapEntry(k as String, (v as num).toDouble()))))
+                .toList() ??
+            [],
       );
 
   Map<String, dynamic> toJson() => {
@@ -32,6 +39,7 @@ class DeviceSettings {
         'notifyEnabled': notifyEnabled,
         'mmwaveThreshold': mmwaveThreshold,
         'clipLengthSec': clipLengthSec,
+        'privacyZones': privacyZones,
       };
 
   DeviceSettings copyWith({
@@ -39,11 +47,13 @@ class DeviceSettings {
     bool? notifyEnabled,
     int? mmwaveThreshold,
     int? clipLengthSec,
+    List<Map<String, double>>? privacyZones,
   }) =>
       DeviceSettings(
         motionEnabled: motionEnabled ?? this.motionEnabled,
         notifyEnabled: notifyEnabled ?? this.notifyEnabled,
         mmwaveThreshold: mmwaveThreshold ?? this.mmwaveThreshold,
         clipLengthSec: clipLengthSec ?? this.clipLengthSec,
+        privacyZones: privacyZones ?? this.privacyZones,
       );
 }

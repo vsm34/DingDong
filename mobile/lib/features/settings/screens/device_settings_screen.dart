@@ -188,6 +188,8 @@ class _SettingsBodyState extends ConsumerState<_SettingsBody> {
   @override
   Widget build(BuildContext context) {
     final isLanReachable = ref.watch(lanReachableProvider);
+    final tunnelUrl = ref.watch(tunnelUrlProvider);
+    final isRemoteActive = tunnelUrl != null && !isLanReachable;
     final device = ref.watch(deviceProvider);
     final qhAsync = ref.watch(quietHoursProvider);
     final qh = qhAsync.valueOrNull ?? const QuietHoursState();
@@ -267,9 +269,42 @@ class _SettingsBodyState extends ConsumerState<_SettingsBody> {
                       ],
                     ),
                   ),
-                  isLanReachable
-                      ? const DDChip.online()
-                      : const DDChip.offline(),
+                  Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    children: [
+                      isLanReachable
+                          ? const DDChip.online()
+                          : const DDChip.offline(),
+                      if (isRemoteActive) ...[
+                        const SizedBox(height: 4),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 6, vertical: 2),
+                          decoration: BoxDecoration(
+                            color: const Color(0xFFDCFCE7),
+                            borderRadius: BorderRadius.circular(
+                                DDSpacing.radiusFull),
+                          ),
+                          child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const Icon(Icons.public,
+                                  size: 10, color: Color(0xFF166534)),
+                              const SizedBox(width: 3),
+                              Text(
+                                'Remote Active',
+                                style: DDTypography.caption.copyWith(
+                                  color: const Color(0xFF166534),
+                                  fontWeight: FontWeight.w600,
+                                  fontSize: 9,
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      ],
+                    ],
+                  ),
                 ],
               ),
             ],
@@ -429,6 +464,69 @@ class _SettingsBodyState extends ConsumerState<_SettingsBody> {
               style: DDTypography.bodyM.copyWith(color: DDColors.textMuted),
             ),
             onTap: () => context.push(Routes.storageManager),
+          ),
+        ),
+        const SizedBox(height: DDSpacing.lg),
+        // REMOTE ACCESS
+        const _SectionLabel('REMOTE ACCESS'),
+        DDCard(
+          child: Column(
+            children: [
+              _TapRow(
+                label: 'Remote Access',
+                trailing: isRemoteActive
+                    ? Container(
+                        padding: const EdgeInsets.symmetric(
+                            horizontal: 6, vertical: 2),
+                        decoration: BoxDecoration(
+                          color: const Color(0xFFDCFCE7),
+                          borderRadius:
+                              BorderRadius.circular(DDSpacing.radiusFull),
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.public,
+                                size: 10, color: Color(0xFF166534)),
+                            const SizedBox(width: 3),
+                            Text(
+                              'Active',
+                              style: DDTypography.caption.copyWith(
+                                color: const Color(0xFF166534),
+                                fontWeight: FontWeight.w600,
+                                fontSize: 10,
+                              ),
+                            ),
+                          ],
+                        ),
+                      )
+                    : const Icon(Icons.cloud_outlined,
+                        size: 18, color: DDColors.textMuted),
+                onTap: () => context.push(Routes.remoteAccess),
+              ),
+            ],
+          ),
+        ),
+        const SizedBox(height: DDSpacing.lg),
+        // PRIVACY
+        const _SectionLabel('PRIVACY'),
+        DDCard(
+          child: _TapRow(
+            label: 'Privacy Zones',
+            trailing: const Icon(Icons.blur_on_outlined,
+                size: 18, color: DDColors.textMuted),
+            onTap: () => context.push(Routes.privacyZones),
+          ),
+        ),
+        const SizedBox(height: DDSpacing.lg),
+        // MEMBERS
+        const _SectionLabel('MEMBERS'),
+        DDCard(
+          child: _TapRow(
+            label: 'Manage Members',
+            trailing: const Icon(Icons.group_outlined,
+                size: 18, color: DDColors.textMuted),
+            onTap: () => context.push(Routes.members),
           ),
         ),
         const SizedBox(height: DDSpacing.xl),

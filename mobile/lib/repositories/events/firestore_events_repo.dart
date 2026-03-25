@@ -60,6 +60,7 @@ class FirestoreEventsRepo implements EventsRepo {
               mmwaveDistance: (statsData['mmwaveDistance'] as num?)?.toDouble(),
             )
           : null,
+      tags: (data['tags'] as List<dynamic>?)?.cast<String>() ?? [],
     );
   }
 }

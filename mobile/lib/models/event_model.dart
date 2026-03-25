@@ -27,6 +27,7 @@ class DdEvent {
   final EventType type;
   final String? clipId;
   final SensorStats? sensorStats;
+  final List<String> tags;
 
   const DdEvent({
     required this.id,
@@ -35,6 +36,7 @@ class DdEvent {
     required this.type,
     this.clipId,
     this.sensorStats,
+    this.tags = const [],
   });
 
   factory DdEvent.fromJson(Map<String, dynamic> json) => DdEvent(
@@ -46,6 +48,7 @@ class DdEvent {
         sensorStats: json['sensorStats'] != null
             ? SensorStats.fromJson(json['sensorStats'] as Map<String, dynamic>)
             : null,
+        tags: (json['tags'] as List<dynamic>?)?.cast<String>() ?? [],
       );
 
   Map<String, dynamic> toJson() => {
@@ -55,7 +58,18 @@ class DdEvent {
         'type': type.name,
         'clipId': clipId,
         'sensorStats': sensorStats?.toJson(),
+        'tags': tags,
       };
 
   String get typeLabel => type == EventType.doorbell ? 'Doorbell' : 'Motion';
+
+  DdEvent copyWith({List<String>? tags}) => DdEvent(
+        id: id,
+        deviceId: deviceId,
+        timestamp: timestamp,
+        type: type,
+        clipId: clipId,
+        sensorStats: sensorStats,
+        tags: tags ?? this.tags,
+      );
 }

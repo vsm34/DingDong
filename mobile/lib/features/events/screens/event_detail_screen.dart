@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +10,8 @@ import '../../../components/dd_bottom_sheet.dart';
 import '../../../components/dd_button.dart';
 import '../../../components/dd_card.dart';
 import '../../../components/dd_loading_indicator.dart';
+import '../../../components/dd_text_field.dart';
+import '../../../components/dd_toast.dart';
 import '../../../models/event_model.dart';
 import '../../../navigation/app_router.dart';
 import '../../../providers/providers.dart';
@@ -113,6 +116,73 @@ class _EventDetailBody extends ConsumerStatefulWidget {
 class _EventDetailBodyState extends ConsumerState<_EventDetailBody> {
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
+  late List<String> _tags;
+
+  @override
+  void initState() {
+    super.initState();
+    _tags = List.of(widget.event.tags);
+  }
+
+  void _showAddTagSheet(BuildContext context) {
+    final ctrl = TextEditingController();
+    DDBottomSheet.show<void>(
+      context: context,
+      title: 'Add Tag',
+      child: StatefulBuilder(
+        builder: (ctx, setSS) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            DDTextField(
+              label: 'Tag Name',
+              hint: 'e.g. delivery, neighbor',
+              controller: ctrl,
+              maxLength: 20,
+              autofocus: true,
+              textInputAction: TextInputAction.done,
+            ),
+            const SizedBox(height: DDSpacing.lg),
+            DDButton.primary(
+              label: 'Add Tag',
+              onPressed: () async {
+                final tag = ctrl.text.trim().toLowerCase();
+                if (tag.isEmpty) return;
+                Navigator.of(ctx).pop();
+                await _addTag(tag);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  Future<void> _addTag(String tag) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.event.id)
+          .update({'tags': FieldValue.arrayUnion([tag])});
+      setState(() {
+        if (!_tags.contains(tag)) _tags.add(tag);
+      });
+      if (mounted) DDToast.success(context, 'Tag added');
+    } catch (_) {
+      if (mounted) DDToast.error(context, 'Failed to add tag.');
+    }
+  }
+
+  Future<void> _removeTag(String tag) async {
+    try {
+      await FirebaseFirestore.instance
+          .collection('events')
+          .doc(widget.event.id)
+          .update({'tags': FieldValue.arrayRemove([tag])});
+      setState(() => _tags.remove(tag));
+    } catch (_) {
+      if (mounted) DDToast.error(context, 'Failed to remove tag.');
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -223,6 +293,76 @@ class _EventDetailBodyState extends ConsumerState<_EventDetailBody> {
             ),
             const SizedBox(height: DDSpacing.lg),
           ],
+          // Tags
+          Text(
+            'Tags',
+            style: DDTypography.label.copyWith(color: DDColors.textMuted),
+          ),
+          const SizedBox(height: DDSpacing.sm),
+          Wrap(
+            spacing: DDSpacing.sm,
+            runSpacing: DDSpacing.xs,
+            children: [
+              ..._tags.map((tag) => Container(
+                    padding: const EdgeInsets.symmetric(
+                        horizontal: 8, vertical: 4),
+                    decoration: BoxDecoration(
+                      color: DDColors.softGreenGray,
+                      borderRadius:
+                          BorderRadius.circular(DDSpacing.radiusFull),
+                      border: Border.all(color: DDColors.borderDefault),
+                    ),
+                    child: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text(
+                          '#$tag',
+                          style: DDTypography.caption.copyWith(
+                            color: DDColors.textPrimary,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                        const SizedBox(width: 4),
+                        GestureDetector(
+                          onTap: () => _removeTag(tag),
+                          child: const Icon(Icons.close,
+                              size: 12, color: DDColors.textMuted),
+                        ),
+                      ],
+                    ),
+                  )),
+              GestureDetector(
+                onTap: () => _showAddTagSheet(context),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(
+                      horizontal: 8, vertical: 4),
+                  decoration: BoxDecoration(
+                    color: DDColors.hunterGreen.withValues(alpha: 0.08),
+                    borderRadius:
+                        BorderRadius.circular(DDSpacing.radiusFull),
+                    border: Border.all(
+                        color: DDColors.hunterGreen.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(Icons.add,
+                          size: 12, color: DDColors.hunterGreen),
+                      const SizedBox(width: 3),
+                      Text(
+                        'Add tag',
+                        style: DDTypography.caption.copyWith(
+                          color: DDColors.hunterGreen,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: DDSpacing.lg),
           // Play Clip
           if (widget.event.clipId != null) ...[
             DDButton.primary(

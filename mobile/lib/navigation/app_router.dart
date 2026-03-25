@@ -20,6 +20,10 @@ import '../features/live_view/screens/live_view_screen.dart';
 import '../features/settings/screens/device_settings_screen.dart';
 import '../features/settings/screens/storage_manager_screen.dart';
 import '../features/settings/screens/about_screen.dart';
+import '../features/settings/screens/remote_access_screen.dart';
+import '../features/settings/screens/members_screen.dart';
+import '../features/settings/screens/privacy_zones_screen.dart';
+import '../features/events/screens/activity_heatmap_screen.dart';
 import '../features/home/screens/home_settings_screen.dart';
 import '../features/debug/screens/debug_screen.dart';
 
@@ -43,6 +47,10 @@ abstract final class Routes {
   static const accountSettings = '/settings/account';
   static const storageManager = '/settings/storage';
   static const about = '/settings/about';
+  static const remoteAccess = '/settings/remote-access';
+  static const members = '/settings/members';
+  static const privacyZones = '/settings/privacy-zones';
+  static const activityHeatmap = '/events/heatmap';
   static const debug = '/debug';
 
   static String eventDetailPath(String eventId) => '/events/$eventId';
@@ -138,6 +146,22 @@ List<RouteBase> get _routes => [
       GoRoute(
         path: Routes.about,
         builder: (_, __) => const AboutScreen(),
+      ),
+      GoRoute(
+        path: Routes.remoteAccess,
+        builder: (_, __) => const RemoteAccessScreen(),
+      ),
+      GoRoute(
+        path: Routes.members,
+        builder: (_, __) => const MembersScreen(),
+      ),
+      GoRoute(
+        path: Routes.privacyZones,
+        builder: (_, __) => const PrivacyZonesScreen(),
+      ),
+      GoRoute(
+        path: Routes.activityHeatmap,
+        builder: (_, __) => const ActivityHeatmapScreen(),
       ),
       GoRoute(
         path: Routes.debug,

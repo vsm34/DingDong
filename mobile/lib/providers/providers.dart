@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 
 import '../models/clip_model.dart';
 import '../models/device_model.dart';
@@ -17,10 +18,17 @@ import '../repositories/events/firestore_events_repo.dart';
 
 // ─── Repository providers ────────────────────────────────────────────────────
 
-/// Device API provider — uses the real ESP32 HTTP API.
-/// Rebuilds automatically if deviceProvider.deviceId changes.
+/// Tunnel URL override — set when LAN is unreachable and user has configured
+/// a Cloudflare Tunnel. Null means use the default mDNS LAN URL.
+final tunnelUrlProvider = StateProvider<String?>((ref) => null);
+
+/// Device API provider — uses tunnel URL when set, otherwise mDNS LAN URL.
 final deviceApiProvider = Provider<DeviceApi>((ref) {
   final device = ref.watch(deviceProvider);
+  final tunnelUrl = ref.watch(tunnelUrlProvider);
+  if (tunnelUrl != null) {
+    return RealDeviceApi(deviceId: device.deviceId, baseUrl: tunnelUrl);
+  }
   return RealDeviceApi(deviceId: device.deviceId);
 });
 
@@ -164,6 +172,55 @@ final _defaultDevice = DdDevice(
 
 final deviceProvider = StateProvider<DdDevice>((ref) => _defaultDevice);
 
+/// Active device ID — persisted in Hive. Used for multi-device switching.
+final activeDeviceIdProvider = StateProvider<String?>((ref) {
+  return Hive.box('settings').get('active_device_id') as String?;
+});
+
+/// All devices the current user is a member of.
+final userDevicesProvider = FutureProvider<List<DdDevice>>((ref) async {
+  final auth = ref.watch(authProvider);
+  if (!auth.isAuthenticated) return [];
+  final uid = auth.user!.uid;
+  try {
+    final membersSnap = await FirebaseFirestore.instance
+        .collection('deviceMembers')
+        .where('uid', isEqualTo: uid)
+        .get();
+    if (membersSnap.docs.isEmpty) return [];
+    final deviceIds = membersSnap.docs
+        .map((d) => d.data()['deviceId'] as String)
+        .toList();
+    final devices = <DdDevice>[];
+    for (final deviceId in deviceIds) {
+      try {
+        final doc = await FirebaseFirestore.instance
+            .collection('devices')
+            .doc(deviceId)
+            .get();
+        if (!doc.exists) continue;
+        final data = doc.data()!;
+        devices.add(DdDevice(
+          deviceId: deviceId,
+          displayName: data['displayName'] as String? ?? deviceId,
+          ownerId: data['ownerId'] as String? ?? '',
+          createdAt:
+              (data['createdAt'] as Timestamp?)?.toDate() ?? DateTime.now(),
+          lastSeen: (data['lastSeen'] as Timestamp?)?.toDate(),
+          firmwareVersion: data['firmwareVersion'] as String?,
+          notifyEnabled: data['notifyEnabled'] as bool? ?? true,
+          motionEnabled: data['motionEnabled'] as bool? ?? true,
+        ));
+      } catch (_) {
+        continue;
+      }
+    }
+    return devices;
+  } catch (_) {
+    return [];
+  }
+});
+
 final deviceHealthProvider = FutureProvider<HealthResponse>((ref) async {
   final api = ref.watch(deviceApiProvider);
   return api.getHealth();
@@ -294,8 +351,8 @@ final onboardingProvider =
 //
 // Polls GET /health every 30 seconds.
 // On success: marks device online, updates deviceProvider.lastSeen, writes
-// lastSeen to Firestore.
-// On failure / timeout: marks device offline.
+// lastSeen to Firestore. Clears tunnelUrlProvider to prefer LAN.
+// On failure / timeout: marks device offline. Auto-switches to tunnel if configured.
 // Call checkNow() to trigger an immediate probe (e.g., on app foreground).
 
 class LanReachabilityNotifier extends Notifier<bool> {
@@ -328,6 +385,10 @@ class LanReachabilityNotifier extends Notifier<bool> {
           await api.getHealth().timeout(const Duration(seconds: 5));
       state = health.ok;
       if (health.ok) {
+        // Back on LAN — clear tunnel URL so we prefer mDNS
+        if (ref.read(tunnelUrlProvider) != null) {
+          ref.read(tunnelUrlProvider.notifier).state = null;
+        }
         final now = DateTime.now();
         final device = ref.read(deviceProvider);
         // Update lastSeen + firmwareVersion in local state
@@ -342,7 +403,26 @@ class LanReachabilityNotifier extends Notifier<bool> {
       }
     } catch (_) {
       state = false;
+      // Auto-switch to tunnel if one is configured in Firestore
+      _autoSwitchToTunnel();
     }
+  }
+
+  void _autoSwitchToTunnel() {
+    final device = ref.read(deviceProvider);
+    FirebaseFirestore.instance
+        .collection('devices')
+        .doc(device.deviceId)
+        .get()
+        .then((doc) {
+      if (!doc.exists) return;
+      final data = doc.data()!;
+      final remoteEnabled = data['remoteAccessEnabled'] as bool? ?? false;
+      final tunnelUrl = data['tunnelUrl'] as String?;
+      if (remoteEnabled && tunnelUrl != null && tunnelUrl.isNotEmpty) {
+        ref.read(tunnelUrlProvider.notifier).state = tunnelUrl;
+      }
+    }).ignore();
   }
 
   void _writeFirestoreLastSeen(String deviceId) {

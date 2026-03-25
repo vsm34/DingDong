@@ -225,6 +225,23 @@ class _HomeSettingsScreenState extends ConsumerState<HomeSettingsScreen> {
             thickness: 0.5,
             color: DDColors.borderDefault,
           ),
+          const Divider(
+            height: 0.5,
+            thickness: 0.5,
+            color: DDColors.borderDefault,
+          ),
+          // Activity section
+          const _SectionHeader(label: 'ACTIVITY'),
+          _SettingsRow(
+            label: 'Activity Heatmap',
+            icon: Icons.bar_chart_outlined,
+            onTap: () => context.push(Routes.activityHeatmap),
+          ),
+          const Divider(
+            height: 0.5,
+            thickness: 0.5,
+            color: DDColors.borderDefault,
+          ),
           // App section
           _SettingsRow(label: 'About', onTap: () {}),
           _SettingsRow(label: 'Help', onTap: () {}),
@@ -296,8 +313,9 @@ class _SettingsCard extends StatelessWidget {
 class _SettingsRow extends StatelessWidget {
   final String label;
   final VoidCallback onTap;
+  final IconData? icon;
 
-  const _SettingsRow({required this.label, required this.onTap});
+  const _SettingsRow({required this.label, required this.onTap, this.icon});
 
   @override
   Widget build(BuildContext context) {
@@ -310,6 +328,10 @@ class _SettingsRow extends StatelessWidget {
         ),
         child: Row(
           children: [
+            if (icon != null) ...[
+              Icon(icon, size: 20, color: DDColors.hunterGreen),
+              const SizedBox(width: DDSpacing.sm),
+            ],
             Expanded(child: Text(label, style: DDTypography.bodyM)),
             const Icon(Icons.chevron_right, size: 20, color: DDColors.textMuted),
           ],

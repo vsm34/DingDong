@@ -31,8 +31,28 @@ class EventsFeedScreen extends ConsumerStatefulWidget {
 class _EventsFeedScreenState extends ConsumerState<EventsFeedScreen> {
   final _deletedIds = <String>{};
   final _filterTypes = <EventType>{};
+  String? _filterTag;
+  bool _isSearching = false;
+  String _searchQuery = '';
+  final _searchController = TextEditingController();
 
-  void _showFilterSheet(BuildContext context) {
+  @override
+  void dispose() {
+    _searchController.dispose();
+    super.dispose();
+  }
+
+  void _showFilterSheet(BuildContext context, List<DdEvent> allEvents) {
+    // Collect up to 10 recent unique tags
+    final recentTags = <String>[];
+    for (final e in allEvents) {
+      for (final tag in e.tags) {
+        if (!recentTags.contains(tag)) recentTags.add(tag);
+        if (recentTags.length >= 10) break;
+      }
+      if (recentTags.length >= 10) break;
+    }
+
     DDBottomSheet.show(
       context: context,
       title: 'Filter Events',
@@ -92,11 +112,42 @@ class _EventsFeedScreenState extends ConsumerState<EventsFeedScreen> {
                 ),
               ],
             ),
+            if (recentTags.isNotEmpty) ...[
+              const SizedBox(height: DDSpacing.md),
+              Text('By tag:', style: DDTypography.caption.copyWith(
+                color: DDColors.textMuted,
+              )),
+              const SizedBox(height: DDSpacing.sm),
+              Wrap(
+                spacing: DDSpacing.sm,
+                runSpacing: DDSpacing.xs,
+                children: recentTags.map((tag) {
+                  final selected = _filterTag == tag;
+                  return FilterChip(
+                    label: Text('#$tag'),
+                    selected: selected,
+                    selectedColor: DDColors.hunterGreen,
+                    labelStyle: TextStyle(
+                      color: selected ? DDColors.white : DDColors.textPrimary,
+                      fontSize: 12,
+                    ),
+                    onSelected: (v) {
+                      setSheetState(() {
+                        setState(() => _filterTag = v ? tag : null);
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+            ],
             const SizedBox(height: DDSpacing.lg),
             DDButton.secondary(
               label: 'Clear Filters',
               onPressed: () {
-                setState(() => _filterTypes.clear());
+                setState(() {
+                  _filterTypes.clear();
+                  _filterTag = null;
+                });
                 Navigator.of(ctx).pop();
               },
             ),
@@ -144,12 +195,107 @@ class _EventsFeedScreenState extends ConsumerState<EventsFeedScreen> {
       );
   }
 
+  void _startSearch() {
+    setState(() {
+      _isSearching = true;
+      _searchQuery = '';
+      _searchController.clear();
+    });
+  }
+
+  void _clearSearch() {
+    setState(() {
+      _isSearching = false;
+      _searchQuery = '';
+      _searchController.clear();
+    });
+  }
+
+  bool _eventMatchesSearch(DdEvent event) {
+    if (_searchQuery.isEmpty) return true;
+    final q = _searchQuery.toLowerCase();
+    if (event.typeLabel.toLowerCase().contains(q)) return true;
+    if (DateFormat('MMM d, yyyy h:mm a').format(event.timestamp).toLowerCase().contains(q)) {
+      return true;
+    }
+    if (event.tags.any((t) => t.toLowerCase().contains(q))) return true;
+    return false;
+  }
+
+  void _showDeviceSwitcher(BuildContext context) {
+    final devicesAsync = ref.read(userDevicesProvider);
+    final activeDevice = ref.read(deviceProvider);
+
+    DDBottomSheet.show<void>(
+      context: context,
+      title: 'Your Devices',
+      child: devicesAsync.when(
+        loading: () =>
+            const Center(child: DDLoadingIndicator(size: DDLoadingSize.md)),
+        error: (_, __) => Center(
+            child: Text('Failed to load devices', style: DDTypography.bodyM)),
+        data: (devices) => Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            ...devices.map((device) {
+              final isActive = device.deviceId == activeDevice.deviceId;
+              return ListTile(
+                leading: PulsingDot(isOnline: device.isOnline),
+                title: Text(device.displayName, style: DDTypography.bodyM),
+                subtitle: Text(device.deviceId,
+                    style: DDTypography.caption
+                        .copyWith(color: DDColors.textMuted)),
+                trailing: isActive
+                    ? const Icon(Icons.check, color: DDColors.hunterGreen)
+                    : null,
+                onTap: () {
+                  Navigator.of(context).pop();
+                  if (!isActive) {
+                    ref.read(deviceProvider.notifier).state = device;
+                    ref.read(activeDeviceIdProvider.notifier).state =
+                        device.deviceId;
+                    Hive.box('settings')
+                        .put('active_device_id', device.deviceId);
+                    ref.read(tunnelUrlProvider.notifier).state = null;
+                    ref.invalidate(eventsProvider);
+                    ref.invalidate(clipsProvider);
+                    ref.invalidate(settingsProvider);
+                  }
+                },
+              );
+            }),
+            const Divider(
+                height: 0.5,
+                thickness: 0.5,
+                color: DDColors.borderDefault),
+            ListTile(
+              leading: const Icon(Icons.add_circle_outline,
+                  color: DDColors.hunterGreen),
+              title: Text('Add new device',
+                  style: DDTypography.bodyM
+                      .copyWith(color: DDColors.hunterGreen)),
+              onTap: () {
+                Navigator.of(context).pop();
+                context.push(Routes.onboardWelcome);
+              },
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     final device = ref.watch(deviceProvider);
     final eventsAsync = ref.watch(eventsProvider);
     final clipsAsync = ref.watch(clipsProvider);
     final isLanReachable = ref.watch(lanReachableProvider);
+    final tunnelUrl = ref.watch(tunnelUrlProvider);
+    final isRemoteActive = tunnelUrl != null && !isLanReachable;
+
+    final hasActiveFilter =
+        _filterTypes.isNotEmpty || _filterTag != null;
 
     return Scaffold(
       backgroundColor: DDColors.white,
@@ -158,38 +304,78 @@ class _EventsFeedScreenState extends ConsumerState<EventsFeedScreen> {
         elevation: 0,
         scrolledUnderElevation: 0.5,
         titleSpacing: DDSpacing.xl,
-        title: const DDLogo.appBar(showWordmark: true),
-        actions: [
-          IconButton(
-            icon: Badge(
-              isLabelVisible: _filterTypes.isNotEmpty,
-              backgroundColor: DDColors.hunterGreen,
-              child: const Icon(Icons.filter_list,
-                  color: DDColors.textPrimary, size: 22),
-            ),
-            onPressed: () => _showFilterSheet(context),
-          ),
-          PopupMenuButton<String>(
-            icon: const Icon(Icons.more_vert,
-                color: DDColors.textPrimary),
-            onSelected: (v) {
-              if (v == 'mark_read') _markAllRead(context);
-            },
-            itemBuilder: (_) => [
-              const PopupMenuItem(
-                value: 'mark_read',
-                child: Text('Mark all as read'),
-              ),
-            ],
-          ),
-          Padding(
-            padding: const EdgeInsets.only(right: DDSpacing.xl),
-            child: _DeviceNamePill(
-              name: device.displayName,
-              isOnline: isLanReachable,
-            ),
-          ),
-        ],
+        title: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: _isSearching
+              ? TextField(
+                  key: const ValueKey('search'),
+                  controller: _searchController,
+                  autofocus: true,
+                  decoration: InputDecoration(
+                    hintText: 'Search events...',
+                    hintStyle: DDTypography.bodyM
+                        .copyWith(color: DDColors.textMuted),
+                    border: InputBorder.none,
+                  ),
+                  style: DDTypography.bodyM,
+                  onChanged: (v) => setState(() => _searchQuery = v),
+                )
+              : const DDLogo.appBar(
+                  key: ValueKey('logo'), showWordmark: true),
+        ),
+        actions: _isSearching
+            ? [
+                IconButton(
+                  icon: const Icon(Icons.close, color: DDColors.textPrimary),
+                  onPressed: _clearSearch,
+                ),
+              ]
+            : [
+                IconButton(
+                  icon: const Icon(Icons.search,
+                      color: DDColors.textPrimary, size: 22),
+                  onPressed: _startSearch,
+                ),
+                IconButton(
+                  icon: Badge(
+                    isLabelVisible: hasActiveFilter,
+                    backgroundColor: DDColors.hunterGreen,
+                    child: const Icon(Icons.filter_list,
+                        color: DDColors.textPrimary, size: 22),
+                  ),
+                  onPressed: () => _showFilterSheet(
+                      context, eventsAsync.valueOrNull ?? []),
+                ),
+                PopupMenuButton<String>(
+                  icon: const Icon(Icons.more_vert,
+                      color: DDColors.textPrimary),
+                  onSelected: (v) {
+                    if (v == 'mark_read') _markAllRead(context);
+                    if (v == 'heatmap') context.push(Routes.activityHeatmap);
+                  },
+                  itemBuilder: (_) => [
+                    const PopupMenuItem(
+                      value: 'mark_read',
+                      child: Text('Mark all as read'),
+                    ),
+                    const PopupMenuItem(
+                      value: 'heatmap',
+                      child: Text('View Heatmap'),
+                    ),
+                  ],
+                ),
+                Padding(
+                  padding: const EdgeInsets.only(right: DDSpacing.xl),
+                  child: GestureDetector(
+                    onTap: () => _showDeviceSwitcher(context),
+                    child: _DeviceNamePill(
+                      name: device.displayName,
+                      isOnline: isLanReachable,
+                      isRemote: isRemoteActive,
+                    ),
+                  ),
+                ),
+              ],
       ),
       floatingActionButton: isLanReachable
           ? FloatingActionButton.extended(
@@ -208,8 +394,10 @@ class _EventsFeedScreenState extends ConsumerState<EventsFeedScreen> {
       body: StreamBuilder<User?>(
         stream: FirebaseAuth.instance.authStateChanges(),
         builder: (context, authSnap) {
-          final firebaseUser = authSnap.data ?? FirebaseAuth.instance.currentUser;
-          final isEmailVerified = firebaseUser?.emailVerified ?? true;
+          final firebaseUser =
+              authSnap.data ?? FirebaseAuth.instance.currentUser;
+          final isEmailVerified =
+              firebaseUser?.emailVerified ?? true;
           return Column(
             children: [
               if (!isEmailVerified)
@@ -287,15 +475,18 @@ class _EventsFeedScreenState extends ConsumerState<EventsFeedScreen> {
                         .where((e) =>
                             !_deletedIds.contains(e.id) &&
                             (_filterTypes.isEmpty ||
-                                _filterTypes.contains(e.type)))
+                                _filterTypes.contains(e.type)) &&
+                            (_filterTag == null ||
+                                e.tags.contains(_filterTag)) &&
+                            _eventMatchesSearch(e))
                         .toList();
 
                     final now = DateTime.now();
                     final today = DateTime(now.year, now.month, now.day);
-                    final todayCount = events
+                    final todayCount = allEvents
                         .where((e) => !e.timestamp.isBefore(today))
                         .length;
-                    final motionEvents = events
+                    final motionEvents = allEvents
                         .where((e) => e.type == EventType.motion)
                         .toList()
                       ..sort((a, b) => b.timestamp.compareTo(a.timestamp));
@@ -307,24 +498,45 @@ class _EventsFeedScreenState extends ConsumerState<EventsFeedScreen> {
                     final dashboard = _DashboardCard(
                       device: device,
                       isLanReachable: isLanReachable,
-                      todayCount: events.isEmpty ? null : todayCount,
+                      todayCount: allEvents.isEmpty ? null : todayCount,
                       clipCount: clipCount,
                       lastMotion: lastMotion,
                     );
 
                     if (events.isEmpty) {
+                      final isSearchOrFilter =
+                          _isSearching || hasActiveFilter;
                       return Column(
                         children: [
                           dashboard,
                           Expanded(
-                            child: DDEmptyState.events(
-                              action: DDButton.secondary(
-                                label: 'Add your DingDong device',
-                                onPressed: () =>
-                                    context.go(Routes.onboardWelcome),
-                                fullWidth: false,
-                              ),
-                            ),
+                            child: isSearchOrFilter
+                                ? Center(
+                                    child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        const Icon(
+                                            Icons.search_off_outlined,
+                                            size: 48,
+                                            color: DDColors.borderDefault),
+                                        const SizedBox(height: DDSpacing.sm),
+                                        Text(
+                                          'No events matching your search.',
+                                          style: DDTypography.bodyM.copyWith(
+                                              color: DDColors.textMuted),
+                                          textAlign: TextAlign.center,
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                : DDEmptyState.events(
+                                    action: DDButton.secondary(
+                                      label: 'Add your DingDong device',
+                                      onPressed: () =>
+                                          context.go(Routes.onboardWelcome),
+                                      fullWidth: false,
+                                    ),
+                                  ),
                           ),
                         ],
                       );
@@ -465,14 +677,28 @@ class _StatBadge extends StatelessWidget {
   }
 }
 
+/// Device name pill — shows connectivity status with wifi/globe icon.
+/// Tappable to open the device switcher sheet.
 class _DeviceNamePill extends StatelessWidget {
   final String name;
   final bool isOnline;
+  final bool isRemote;
 
-  const _DeviceNamePill({required this.name, required this.isOnline});
+  const _DeviceNamePill({
+    required this.name,
+    required this.isOnline,
+    required this.isRemote,
+  });
 
   @override
   Widget build(BuildContext context) {
+    final iconColor = (isOnline || isRemote)
+        ? DDColors.hunterGreen
+        : DDColors.textMuted;
+    final statusIcon = isRemote
+        ? Icons.public
+        : (isOnline ? Icons.wifi : Icons.wifi_off);
+
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
       decoration: BoxDecoration(
@@ -483,8 +709,10 @@ class _DeviceNamePill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          PulsingDot(isOnline: isOnline),
-          const SizedBox(width: 6),
+          PulsingDot(isOnline: isOnline || isRemote),
+          const SizedBox(width: 4),
+          Icon(statusIcon, size: 12, color: iconColor),
+          const SizedBox(width: 4),
           Text(
             name,
             style: DDTypography.label.copyWith(color: DDColors.textPrimary),
@@ -521,7 +749,7 @@ class _EventsList extends StatelessWidget {
     }
 
     final totalItems =
-        1 + sections.fold<int>(0, (sum, s) => sum + 1 + s.value.length);
+        1 + sections.fold<int>(0, (acc, s) => acc + 1 + s.value.length);
 
     return ListView.builder(
       padding: const EdgeInsets.only(bottom: 88),
@@ -639,6 +867,30 @@ class _EventTile extends StatelessWidget {
                         _relativeTime(event.timestamp),
                         style: DDTypography.caption,
                       ),
+                      if (event.tags.isNotEmpty) ...[
+                        const SizedBox(height: 4),
+                        Wrap(
+                          spacing: 4,
+                          children: event.tags
+                              .take(3)
+                              .map((t) => Container(
+                                    padding: const EdgeInsets.symmetric(
+                                        horizontal: 5, vertical: 1),
+                                    decoration: BoxDecoration(
+                                      color: DDColors.softGreenGray,
+                                      borderRadius: BorderRadius.circular(4),
+                                    ),
+                                    child: Text(
+                                      '#$t',
+                                      style: DDTypography.caption.copyWith(
+                                        fontSize: 10,
+                                        color: DDColors.textMuted,
+                                      ),
+                                    ),
+                                  ))
+                              .toList(),
+                        ),
+                      ],
                     ],
                   ),
                 ),
