@@ -15,6 +15,7 @@ import '../repositories/device_api/device_api.dart';
 import '../repositories/device_api/real_device_api.dart';
 import '../repositories/events/events_repo.dart';
 import '../repositories/events/firestore_events_repo.dart';
+import '../services/ai_service.dart';
 
 // ─── Repository providers ────────────────────────────────────────────────────
 
@@ -631,3 +632,7 @@ final motionScheduleProvider =
 // ─── Signal strength (from LAN health) ───────────────────────────────────────
 
 final signalStrengthProvider = StateProvider<int?>((ref) => null);
+
+// ─── AI Service ───────────────────────────────────────────────────────────────
+
+final aiServiceProvider = Provider<AiService>((ref) => AiService());

@@ -4,6 +4,7 @@ const functions = require('firebase-functions');
 const admin = require('firebase-admin');
 const crypto = require('crypto');
 const { verifyHmac } = require('./hmac');
+const Anthropic = require('@anthropic-ai/sdk');
 
 admin.initializeApp();
 const db = admin.firestore();
@@ -208,3 +209,123 @@ exports.provisionSecret = functions.https.onRequest(async (req, res) => {
 
   return res.json({ secret });
 });
+
+// ─── generateEventSummary ─────────────────────────────────────────────────────
+// HTTPS Callable — requires Firebase Auth.
+// Generates a one-sentence AI summary of a doorbell event using Claude Haiku.
+// Stores the result back to Firestore events/{eventId}.aiSummary for caching.
+exports.generateEventSummary = functions
+  .runWith({ secrets: ['ANTHROPIC_API_KEY'] })
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Request must be authenticated.'
+      );
+    }
+
+    const { eventId, eventType, timestamp, sensorStats, deviceName } = data || {};
+
+    if (!eventId || typeof eventId !== 'string') {
+      throw new functions.https.HttpsError('invalid-argument', 'Missing eventId');
+    }
+
+    // Format time as h:mm AM/PM
+    const date = new Date(timestamp || Date.now());
+    const hours = date.getHours();
+    const minutes = date.getMinutes();
+    const ampm = hours >= 12 ? 'PM' : 'AM';
+    const h = hours % 12 || 12;
+    const mm = String(minutes).padStart(2, '0');
+    const formattedTime = `${h}:${mm} ${ampm}`;
+
+    const pirTriggered = sensorStats?.pirTriggered ?? false;
+    const mmwaveDistance = sensorStats?.mmwaveDistance ?? null;
+    const distanceStr = mmwaveDistance != null ? `${mmwaveDistance}m` : 'not available';
+    const name = deviceName || 'your device';
+
+    const userMessage =
+      `Event type: ${eventType || 'motion'}. ` +
+      `Time: ${formattedTime}. ` +
+      `PIR triggered: ${pirTriggered}. ` +
+      `mmWave distance: ${distanceStr}. ` +
+      `Device: ${name}. ` +
+      `Generate one summary sentence.`;
+
+    try {
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+      const response = await anthropic.messages.create({
+        model: 'claude-haiku-3-5-20241022',
+        max_tokens: 60,
+        system:
+          "You are a smart doorbell assistant. Generate a single short sentence (under 15 words) " +
+          "describing a doorbell event. Be specific and natural. Never start with 'I'. " +
+          "Examples: 'Someone approached 2.1 meters from your door at 3:14 PM.' or " +
+          "'Your doorbell was pressed.' or 'Motion detected near your front door.'",
+        messages: [{ role: 'user', content: userMessage }],
+      });
+
+      const summary = response.content[0]?.text?.trim() || null;
+
+      if (summary) {
+        await db.collection('events').doc(eventId).set(
+          { aiSummary: summary },
+          { merge: true }
+        );
+      }
+
+      return { summary };
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : String(err);
+      return { summary: null, error: errorMsg };
+    }
+  });
+
+// ─── aiSupportChat ────────────────────────────────────────────────────────────
+// HTTPS Callable — requires Firebase Auth.
+// Proxies a conversation to Claude and returns the assistant reply.
+exports.aiSupportChat = functions
+  .runWith({ secrets: ['ANTHROPIC_API_KEY'] })
+  .https.onCall(async (data, context) => {
+    if (!context.auth) {
+      throw new functions.https.HttpsError(
+        'unauthenticated',
+        'Request must be authenticated.'
+      );
+    }
+
+    const { messages } = data || {};
+
+    if (!Array.isArray(messages) || messages.length === 0) {
+      throw new functions.https.HttpsError('invalid-argument', 'Missing messages');
+    }
+
+    const systemPrompt =
+      "You are DingDong Support, a helpful assistant for the DingDong smart doorbell system. " +
+      "DingDong is a privacy-first doorbell that stores all video locally on a microSD card " +
+      "with no cloud subscription required. It uses dual-sensor detection (PIR + mmWave radar) " +
+      "to reduce false alerts. The mobile app connects to the device over local Wi-Fi. " +
+      "Key features: motion detection, doorbell button, live view on LAN, clip playback, " +
+      "push notifications via Firebase, device onboarding via SoftAP. " +
+      "Common issues: device offline means not on same Wi-Fi network, " +
+      "clips only available on home network, notifications require FCM token registered. " +
+      "Answer questions helpfully and concisely. If you don't know something specific " +
+      "about the user's setup, say so. Keep responses under 100 words.";
+
+    try {
+      const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
+
+      const response = await anthropic.messages.create({
+        model: 'claude-haiku-3-5-20241022',
+        max_tokens: 200,
+        system: systemPrompt,
+        messages: messages,
+      });
+
+      const reply = response.content[0]?.text?.trim() || "I couldn't generate a response.";
+      return { reply };
+    } catch (_) {
+      return { reply: "Sorry, I'm having trouble connecting. Please try again." };
+    }
+  });

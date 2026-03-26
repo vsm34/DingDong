@@ -23,6 +23,7 @@ import '../features/settings/screens/about_screen.dart';
 import '../features/settings/screens/remote_access_screen.dart';
 import '../features/settings/screens/members_screen.dart';
 import '../features/settings/screens/privacy_zones_screen.dart';
+import '../features/settings/screens/support_chat_screen.dart';
 import '../features/events/screens/activity_heatmap_screen.dart';
 import '../features/home/screens/home_settings_screen.dart';
 import '../features/debug/screens/debug_screen.dart';
@@ -51,6 +52,7 @@ abstract final class Routes {
   static const members = '/settings/members';
   static const privacyZones = '/settings/privacy-zones';
   static const activityHeatmap = '/events/heatmap';
+  static const supportChat = '/settings/support';
   static const debug = '/debug';
 
   static String eventDetailPath(String eventId) => '/events/$eventId';
@@ -162,6 +164,10 @@ List<RouteBase> get _routes => [
       GoRoute(
         path: Routes.activityHeatmap,
         builder: (_, __) => const ActivityHeatmapScreen(),
+      ),
+      GoRoute(
+        path: Routes.supportChat,
+        builder: (_, __) => const SupportChatScreen(),
       ),
       GoRoute(
         path: Routes.debug,

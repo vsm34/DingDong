@@ -117,11 +117,32 @@ class _EventDetailBodyState extends ConsumerState<_EventDetailBody> {
   bool _isDownloading = false;
   double _downloadProgress = 0.0;
   late List<String> _tags;
+  String? _aiSummary;
+  bool _isGeneratingSummary = false;
 
   @override
   void initState() {
     super.initState();
     _tags = List.of(widget.event.tags);
+    _aiSummary = widget.event.aiSummary;
+  }
+
+  Future<void> _generateSummary() async {
+    setState(() => _isGeneratingSummary = true);
+    final deviceName = ref.read(deviceProvider).displayName;
+    final summary = await ref
+        .read(aiServiceProvider)
+        .generateEventSummary(widget.event, deviceName);
+    if (!mounted) return;
+    if (summary != null) {
+      setState(() {
+        _aiSummary = summary;
+        _isGeneratingSummary = false;
+      });
+    } else {
+      setState(() => _isGeneratingSummary = false);
+      DDToast.error(context, 'Could not generate summary');
+    }
   }
 
   void _showAddTagSheet(BuildContext context) {
@@ -213,6 +234,36 @@ class _EventDetailBodyState extends ConsumerState<_EventDetailBody> {
                     timestamp: widget.event.timestamp,
                   ),
                 ),
+          const SizedBox(height: DDSpacing.lg),
+          // AI Summary
+          if (_aiSummary != null)
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Icon(Icons.auto_awesome,
+                    size: 16, color: Color(0xFF355E3B)),
+                const SizedBox(width: DDSpacing.xs),
+                Expanded(
+                  child: Text(
+                    _aiSummary!,
+                    style: DDTypography.bodyM.copyWith(
+                      color: const Color(0xFF355E3B),
+                      fontStyle: FontStyle.italic,
+                    ),
+                  ),
+                ),
+              ],
+            )
+          else if (_isGeneratingSummary)
+            const Center(
+                child: DDLoadingIndicator(size: DDLoadingSize.sm))
+          else
+            DDButton.secondary(
+              label: 'Generate Summary',
+              leading: const Icon(Icons.auto_awesome,
+                  size: 16, color: DDColors.hunterGreen),
+              onPressed: _generateSummary,
+            ),
           const SizedBox(height: DDSpacing.lg),
           // Sensor stats
           if (stats != null) ...[

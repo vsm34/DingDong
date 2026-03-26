@@ -61,6 +61,7 @@ class FirestoreEventsRepo implements EventsRepo {
             )
           : null,
       tags: (data['tags'] as List<dynamic>?)?.cast<String>() ?? [],
+      aiSummary: data['aiSummary'] as String?,
     );
   }
 }

@@ -242,6 +242,18 @@ class _HomeSettingsScreenState extends ConsumerState<HomeSettingsScreen> {
             thickness: 0.5,
             color: DDColors.borderDefault,
           ),
+          // Support section
+          const _SectionHeader(label: 'SUPPORT'),
+          _SettingsRow(
+            label: 'AI Support',
+            icon: Icons.support_agent,
+            onTap: () => context.push(Routes.supportChat),
+          ),
+          const Divider(
+            height: 0.5,
+            thickness: 0.5,
+            color: DDColors.borderDefault,
+          ),
           // App section
           _SettingsRow(label: 'About', onTap: () {}),
           _SettingsRow(label: 'Help', onTap: () {}),
