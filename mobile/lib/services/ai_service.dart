@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../models/event_model.dart';
@@ -66,6 +67,7 @@ class AiService {
       // Step 1: get current user
       final user = FirebaseAuth.instance.currentUser;
       if (user == null) {
+        debugPrint('user is null');
         return 'Please sign in to use support chat.';
       }
 
@@ -76,7 +78,8 @@ class AiService {
         if (idToken.isEmpty) {
           return 'Authentication error. Please sign out and sign in again.';
         }
-      } catch (_) {
+      } catch (e) {
+        debugPrint('getIdToken error: $e');
         return 'Authentication error. Please sign out and sign in again.';
       }
 
@@ -118,7 +121,8 @@ class AiService {
         }
       }
       return "Sorry, I'm having trouble connecting. Please try again.";
-    } catch (_) {
+    } catch (e) {
+      debugPrint('aiSupportChat error: $e');
       return "Sorry, I'm having trouble connecting. Please try again.";
     }
   }

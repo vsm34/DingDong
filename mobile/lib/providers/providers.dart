@@ -224,6 +224,7 @@ final userDevicesProvider = FutureProvider<List<DdDevice>>((ref) async {
 });
 
 final deviceHealthProvider = FutureProvider<HealthResponse>((ref) async {
+  if (kIsWeb) throw Exception('Device not reachable on web');
   final api = ref.watch(deviceApiProvider);
   return api.getHealth();
 });
@@ -251,6 +252,7 @@ final eventDetailProvider =
 // ─── Clips ───────────────────────────────────────────────────────────────────
 
 final clipsProvider = FutureProvider<List<DdClip>>((ref) async {
+  if (kIsWeb) return [];
   final api = ref.watch(deviceApiProvider);
   try {
     return await api.getClips();
@@ -264,6 +266,7 @@ final clipsProvider = FutureProvider<List<DdClip>>((ref) async {
 class SettingsNotifier extends AsyncNotifier<DeviceSettings> {
   @override
   Future<DeviceSettings> build() async {
+    if (kIsWeb) return DeviceSettings.defaults();
     final api = ref.watch(deviceApiProvider);
     return api.getSettings();
   }
