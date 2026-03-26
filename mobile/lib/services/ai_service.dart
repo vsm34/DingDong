@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:cloud_functions/cloud_functions.dart';
 import 'package:dio/dio.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -9,14 +11,26 @@ import '../models/event_model.dart';
 ///   (onRequest with CORS) to avoid callable CORS issues on Flutter web.
 class AiService {
   final FirebaseFunctions _functions;
-  final Dio _dio;
 
   static const _chatUrl =
       'https://us-central1-dingdong-596c2.cloudfunctions.net/aiSupportChat';
 
-  AiService({FirebaseFunctions? functions, Dio? dio})
-      : _functions = functions ?? FirebaseFunctions.instance,
-        _dio = dio ?? Dio();
+  static const _systemPrompt =
+      'You are DingDong Support, a helpful assistant for the DingDong smart '
+      'doorbell system. DingDong is a privacy-first doorbell that stores all '
+      'video locally on a microSD card with no cloud subscription required. '
+      'It uses dual-sensor detection (PIR + mmWave radar) to reduce false '
+      'alerts. The mobile app connects to the device over local Wi-Fi. '
+      'Key features: motion detection, doorbell button, live view on LAN, '
+      'clip playback, push notifications via Firebase, device onboarding via '
+      'SoftAP. Common issues: device offline means not on same Wi-Fi network, '
+      'clips only available on home network, notifications require FCM token '
+      'registered. Answer questions helpfully and concisely. If you do not '
+      'know something specific about the user\'s setup, say so. Keep responses '
+      'under 100 words.';
+
+  AiService({FirebaseFunctions? functions})
+      : _functions = functions ?? FirebaseFunctions.instance;
 
   /// Generates a one-sentence summary for the given event.
   /// Returns null on failure.
@@ -48,27 +62,64 @@ class AiService {
   /// Dio HTTP POST (bypasses callable CORS issues on Flutter web).
   Future<String> sendSupportMessage(
       List<Map<String, String>> messages) async {
-    const fallback =
-        "Sorry, I'm having trouble connecting. Please try again.";
     try {
-      final token =
-          await FirebaseAuth.instance.currentUser?.getIdToken();
-      if (token == null) return fallback;
+      // Step 1: get current user
+      final user = FirebaseAuth.instance.currentUser;
+      if (user == null) {
+        return 'Please sign in to use support chat.';
+      }
 
-      final response = await _dio.post<Map<String, dynamic>>(
-        _chatUrl,
-        data: {'messages': messages},
-        options: Options(
-          headers: {
-            'Authorization': 'Bearer $token',
-            'Content-Type': 'application/json',
-          },
-        ),
-      );
-      final data = response.data;
-      return data?['reply'] as String? ?? fallback;
+      // Step 2: get ID token
+      String idToken;
+      try {
+        idToken = await user.getIdToken() ?? '';
+        if (idToken.isEmpty) {
+          return 'Authentication error. Please sign out and sign in again.';
+        }
+      } catch (_) {
+        return 'Authentication error. Please sign out and sign in again.';
+      }
+
+      // Step 3: build request body
+      final body = {
+        'model': 'claude-3-haiku-20240307',
+        'max_tokens': 200,
+        'system': _systemPrompt,
+        'messages': messages,
+      };
+
+      // Step 4: make Dio POST with explicit timeouts
+      final dio = Dio(BaseOptions(
+        connectTimeout: const Duration(seconds: 10),
+        receiveTimeout: const Duration(seconds: 30),
+        headers: {
+          'Authorization': 'Bearer $idToken',
+          'Content-Type': 'application/json',
+        },
+      ));
+
+      final response = await dio.post<dynamic>(_chatUrl, data: body);
+
+      // Step 5: parse response
+      if (response.statusCode == 200) {
+        final data = response.data;
+        if (data is Map) {
+          return data['reply'] as String? ??
+              "Sorry, I'm having trouble connecting. Please try again.";
+        }
+        if (data is String) {
+          try {
+            final parsed = jsonDecode(data) as Map<String, dynamic>;
+            return parsed['reply'] as String? ??
+                "Sorry, I'm having trouble connecting. Please try again.";
+          } catch (_) {
+            // fall through
+          }
+        }
+      }
+      return "Sorry, I'm having trouble connecting. Please try again.";
     } catch (_) {
-      return fallback;
+      return "Sorry, I'm having trouble connecting. Please try again.";
     }
   }
 }

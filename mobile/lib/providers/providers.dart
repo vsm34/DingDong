@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
@@ -376,8 +377,8 @@ class LanReachabilityNotifier extends Notifier<bool> {
       const Duration(seconds: 30),
       (_) => _check(),
     );
-    // Run an immediate check without blocking build()
-    Future.microtask(_check);
+    // Run an immediate check without blocking build() — skip on web (no mDNS)
+    if (!kIsWeb) Future.microtask(_check);
     ref.onDispose(() => _timer?.cancel());
     return false;
   }
@@ -390,6 +391,11 @@ class LanReachabilityNotifier extends Notifier<bool> {
   void debugOverride(bool value) => state = value;
 
   Future<void> _check() async {
+    // Web has no mDNS — always offline, no HTTP request needed
+    if (kIsWeb) {
+      state = false;
+      return;
+    }
     try {
       final api = ref.read(deviceApiProvider);
       final health =
