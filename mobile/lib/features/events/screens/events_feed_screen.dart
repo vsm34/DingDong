@@ -35,6 +35,15 @@ class _EventsFeedScreenState extends ConsumerState<EventsFeedScreen> {
   bool _isSearching = false;
   String _searchQuery = '';
   final _searchController = TextEditingController();
+  bool _emailBannerDismissed = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _emailBannerDismissed =
+        Hive.box('settings').get('email_banner_dismissed', defaultValue: false)
+            as bool;
+  }
 
   @override
   void dispose() {
@@ -400,7 +409,7 @@ class _EventsFeedScreenState extends ConsumerState<EventsFeedScreen> {
               firebaseUser?.emailVerified ?? true;
           return Column(
             children: [
-              if (!isEmailVerified)
+              if (!isEmailVerified && !_emailBannerDismissed)
                 Container(
                   width: double.infinity,
                   color: DDColors.amber.withValues(alpha: 0.15),
@@ -444,6 +453,16 @@ class _EventsFeedScreenState extends ConsumerState<EventsFeedScreen> {
                             fontWeight: FontWeight.w600,
                           ),
                         ),
+                      ),
+                      const SizedBox(width: DDSpacing.sm),
+                      GestureDetector(
+                        onTap: () {
+                          Hive.box('settings')
+                              .put('email_banner_dismissed', true);
+                          setState(() => _emailBannerDismissed = true);
+                        },
+                        child: const Icon(Icons.close,
+                            size: 16, color: DDColors.warning),
                       ),
                     ],
                   ),
@@ -530,11 +549,10 @@ class _EventsFeedScreenState extends ConsumerState<EventsFeedScreen> {
                                     ),
                                   )
                                 : DDEmptyState.events(
-                                    action: DDButton.secondary(
-                                      label: 'Add your DingDong device',
+                                    action: DDButton.primary(
+                                      label: 'Add Device',
                                       onPressed: () =>
                                           context.go(Routes.onboardWelcome),
-                                      fullWidth: false,
                                     ),
                                   ),
                           ),

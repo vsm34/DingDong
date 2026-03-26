@@ -117,15 +117,21 @@ class _ClipsListScreenState extends ConsumerState<ClipsListScreen> {
               loading: () => ListView(
                 children: List.generate(4, (_) => const DDShimmerTile()),
               ),
-              error: (_, __) => DDEmptyState.error(
-                action: DDButton.secondary(
-                  label: 'Retry',
-                  onPressed: () => ref.refresh(clipsProvider.future),
-                  fullWidth: false,
+              error: (_, __) => DDEmptyState.clips(
+                action: DDButton.primary(
+                  label: 'Add Device',
+                  onPressed: () => context.go(Routes.onboardWelcome),
                 ),
               ),
               data: (clips) {
-                if (clips.isEmpty) return const DDEmptyState.clips();
+                if (clips.isEmpty) {
+                  return DDEmptyState.clips(
+                    action: DDButton.primary(
+                      label: 'Add Device',
+                      onPressed: () => context.go(Routes.onboardWelcome),
+                    ),
+                  );
+                }
 
                 // Storage warning
                 final totalBytes =

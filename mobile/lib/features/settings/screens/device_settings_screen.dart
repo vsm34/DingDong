@@ -80,7 +80,38 @@ class DeviceSettingsScreen extends ConsumerWidget {
           backgroundColor: DDColors.white,
           appBar: appBar,
           body: Center(
-            child: Text('Could not load settings', style: DDTypography.bodyM),
+            child: Padding(
+              padding: const EdgeInsets.all(DDSpacing.xl),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Container(
+                    width: 96,
+                    height: 96,
+                    decoration: BoxDecoration(
+                      color: DDColors.textMuted.withValues(alpha: 0.08),
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(Icons.wifi_off,
+                        size: 48, color: DDColors.textMuted),
+                  ),
+                  const SizedBox(height: DDSpacing.md),
+                  Text('Device Offline', style: DDTypography.h3,
+                      textAlign: TextAlign.center),
+                  const SizedBox(height: DDSpacing.sm),
+                  Text(
+                    'Your device is unreachable and no cached settings are available.',
+                    style: DDTypography.bodyM.copyWith(color: DDColors.textMuted),
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: DDSpacing.lg),
+                  DDButton.primary(
+                    label: 'Add Device',
+                    onPressed: () => context.go(Routes.onboardWelcome),
+                  ),
+                ],
+              ),
+            ),
           ),
         );
       },

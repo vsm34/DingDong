@@ -231,7 +231,13 @@ final deviceHealthProvider = FutureProvider<HealthResponse>((ref) async {
 final eventsProvider = FutureProvider<List<DdEvent>>((ref) async {
   final repo = ref.watch(eventsRepoProvider);
   final device = ref.watch(deviceProvider);
-  return repo.getEvents(deviceId: device.deviceId);
+  try {
+    return await repo.getEvents(deviceId: device.deviceId);
+  } on FirebaseException {
+    return [];
+  } catch (_) {
+    return [];
+  }
 });
 
 final eventDetailProvider =
@@ -244,7 +250,11 @@ final eventDetailProvider =
 
 final clipsProvider = FutureProvider<List<DdClip>>((ref) async {
   final api = ref.watch(deviceApiProvider);
-  return api.getClips();
+  try {
+    return await api.getClips();
+  } catch (_) {
+    return [];
+  }
 });
 
 // ─── Settings ────────────────────────────────────────────────────────────────
