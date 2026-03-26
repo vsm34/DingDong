@@ -255,11 +255,27 @@ class _EventDetailBodyState extends ConsumerState<_EventDetailBody> {
               ],
             )
           else if (_isGeneratingSummary)
-            const Center(
-                child: DDLoadingIndicator(size: DDLoadingSize.sm))
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const DDButton.secondary(
+                  label: 'Generate AI Summary',
+                  leading: Icon(Icons.auto_awesome,
+                      size: 16, color: DDColors.hunterGreen),
+                  isLoading: true,
+                  onPressed: null,
+                ),
+                const SizedBox(height: DDSpacing.xs),
+                Text(
+                  'Generating summary...',
+                  style: DDTypography.caption
+                      .copyWith(color: DDColors.textMuted),
+                ),
+              ],
+            )
           else
             DDButton.secondary(
-              label: 'Generate Summary',
+              label: 'Generate AI Summary',
               leading: const Icon(Icons.auto_awesome,
                   size: 16, color: DDColors.hunterGreen),
               onPressed: _generateSummary,
