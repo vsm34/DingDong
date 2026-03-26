@@ -371,9 +371,10 @@ exports.aiSupportChat = functions
  
         const reply = response.content[0]?.text?.trim() || "I couldn't generate a response.";
         return res.json({ reply });
-      } catch (_) {
-        return res.json({ reply: "Sorry, I'm having trouble connecting. Please try again." });
-      }
+      } catch (err) {
+  console.error('Anthropic error:', err.message || err);
+  return res.json({ reply: "Sorry, I'm having trouble connecting. Please try again." });
+}
     });
   });
  
