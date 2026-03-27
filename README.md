@@ -86,10 +86,17 @@ DingDong/
 ## Read These Docs In This Order
 
 1. **[HANDOVER.md](docs/HANDOVER.md)** — Start here. Setup, credentials, how to run the app.
-2. **[FIRMWARE_GUIDE.md](docs/FIRMWARE_GUIDE.md)** — Complete firmware explanation and flash instructions.
-3. **[APP_GUIDE.md](docs/APP_GUIDE.md)** — Every app screen and how it connects to firmware.
-4. **[TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md)** — Complete test plan for hardware bring-up.
+    - Your setup guide. Step by step instructions for installing Flutter, Android Studio, Node.js, Firebase CLI, and ESP-IDF on Windows. How to clone the repo, install all dependencies, how to run the app on Chrome for quick testing, and how to install and run it on the Android phone. Also covers Git workflow, how to create branches, and most importantly — the rules for issue reporting. If you find a bug in the firmware C++ code you can fix it directly and commit. If you find a bug in the app, Cloud Functions, or backend, document it using the template in the file and send it to me.
 
+2. **[FIRMWARE_GUIDE.md](docs/FIRMWARE_GUIDE.md)** — Complete firmware explanation and flash instructions.
+    - Deep dive into every firmware file. Explains what each file does, the complete GPIO pin reference table for every component (camera, SD card, PIR, mmWave, doorbell, buzzer), how the FreeRTOS tasks work and communicate with each other, the full end-to-end event flow from motion detected to push notification delivered, build and flash commands, what the serial output should look like at each stage, and a common issues section for things like SD card mount failures and camera init problems.
+
+3. **[APP_GUIDE.md](docs/APP_GUIDE.md)** — Every app screen and how it connects to firmware.
+    - Every screen in the app explained. What it shows, what it connects to in the firmware, what Firebase collections it reads and writes, and what happens when the device is offline. Use this when you're testing and something looks wrong in the app — it tells you exactly what each screen is supposed to do and where the data comes from.
+
+
+4. **[TEST_CHECKLIST.md](docs/TEST_CHECKLIST.md)** — Complete test plan for hardware bring-up.
+    -  Your complete test plan. 9 phases covering: power system validation, ESP32 boot sequence, SD card, camera, PIR, mmWave, doorbell, firmware API tests with actual curl commands you can run, full provisioning test, core app features on Android, dual-sensor fusion validation, false alert suppression, security audit, AI feature tests (use sparingly — limited API credits), stress tests, and a pre-demo checklist. Has a results log table at the bottom to track pass/fail as you go. Also includes the issue report template to use when sending me bugs.
 ---
 
 ## Firebase Project
