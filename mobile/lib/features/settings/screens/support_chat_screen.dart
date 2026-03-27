@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_markdown/flutter_markdown.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../core/theme/dd_spacing.dart';
@@ -220,14 +221,24 @@ class _MessageBubble extends StatelessWidget {
               ),
               child: message.isTyping
                   ? const _TypingIndicator()
-                  : Text(
-                      message.content,
-                      style: DDTypography.bodyM.copyWith(
-                        color: isUser
-                            ? Colors.white
-                            : const Color(0xFF1A2E1A),
-                      ),
-                    ),
+                  : isUser
+                      ? Text(
+                          message.content,
+                          style: DDTypography.bodyM.copyWith(
+                            color: Colors.white,
+                          ),
+                        )
+                      : MarkdownBody(
+                          data: message.content,
+                          shrinkWrap: true,
+                          styleSheet: MarkdownStyleSheet.fromTheme(
+                            Theme.of(context),
+                          ).copyWith(
+                            p: DDTypography.bodyM.copyWith(
+                              color: DDColors.textPrimary,
+                            ),
+                          ),
+                        ),
             ),
           ),
           if (isUser) const SizedBox(width: DDSpacing.sm),
