@@ -1,3 +1,6 @@
+
+Copy
+
 'use strict';
  
 const functions = require('firebase-functions');
@@ -129,7 +132,7 @@ exports.notify = functions
       const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
       const userMessage = _buildNotifySummaryMessage(type, ts, sensorStats, deviceName);
       const aiResponse = await anthropic.messages.create({
-        model: 'claude-3-haiku-20240307',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 60,
         system: _aiSystemPrompt,
         messages: [{ role: 'user', content: userMessage }],
@@ -295,7 +298,7 @@ exports.generateEventSummary = functions
       const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
  
       const response = await anthropic.messages.create({
-        model: 'claude-3-5-haiku-20241022',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 60,
         system: _aiSystemPrompt,
         messages: [{ role: 'user', content: userMessage }],
@@ -363,7 +366,7 @@ exports.aiSupportChat = functions
         const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY });
  
         const response = await anthropic.messages.create({
-          model: 'claude-3-5-haiku-20241022',
+          model: 'claude-haiku-4-5-20251001',
           max_tokens: 200,
           system: systemPrompt,
           messages: messages,
@@ -377,4 +380,3 @@ exports.aiSupportChat = functions
 }
     });
   });
- 
