@@ -236,6 +236,12 @@ static size_t build_avi(
 // ── Camera init ───────────────────────────────────────────────────────────────
 static esp_err_t init_camera(void)
 {
+    ESP_LOGI(TAG,
+             "Camera pins: SDA=%d SCL=%d RST=%d PWDN=%d VSYNC=%d HREF=%d PCLK=%d XCLK=%d",
+             (int)DD_CAM_SDA_GPIO, (int)DD_CAM_SCL_GPIO, (int)DD_CAM_RESETB_GPIO,
+             (int)DD_CAM_PWDN_GPIO, (int)DD_CAM_VSYNC_GPIO, (int)DD_CAM_HREF_GPIO,
+             (int)DD_CAM_PCLK_GPIO, (int)DD_CAM_XCLK_GPIO);
+
     camera_config_t cfg = {};
     cfg.pin_pwdn     = DD_CAM_PWDN_GPIO;
     cfg.pin_reset    = DD_CAM_RESETB_GPIO;
@@ -262,7 +268,18 @@ static esp_err_t init_camera(void)
     cfg.fb_count     = 2;
     cfg.fb_location  = CAMERA_FB_IN_PSRAM;
     cfg.grab_mode    = CAMERA_GRAB_WHEN_EMPTY;
-    return esp_camera_init(&cfg);
+    esp_err_t err = esp_camera_init(&cfg);
+    if (err == ESP_ERR_NOT_SUPPORTED) {
+        ESP_LOGE(TAG,
+                 "OV5640 probe failed: no SCCB ACK or wrong chip ID. "
+                 "Check camera FPC, 2.8V/1.8V rails, and schematic for PWDN(GPIO%d)/RESET(GPIO%d) "
+                 "(PRD 15.2: verify PWDN). If PWDN/RST are hardwired on the module, set those pins to -1 in code.",
+                 (int)DD_CAM_PWDN_GPIO, (int)DD_CAM_RESETB_GPIO);
+        ESP_LOGE(TAG,
+                 "If the bus is alive, you should see 'Mismatch PID=0x...' from other drivers; if there is only "
+                 "'Detected camera not supported', I2C is probably not reaching the sensor.");
+    }
+    return err;
 }
 
 // ── camera_task ───────────────────────────────────────────────────────────────
