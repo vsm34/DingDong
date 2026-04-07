@@ -363,7 +363,7 @@ static esp_err_t init_camera(void)
     cfg.ledc_timer   = LEDC_TIMER_0;
     cfg.ledc_channel = LEDC_CHANNEL_0;
     cfg.pixel_format = PIXFORMAT_JPEG;
-    cfg.frame_size   = FRAMESIZE_HD;
+    cfg.frame_size   = FRAMESIZE_VGA;
     cfg.jpeg_quality = 12;
     cfg.fb_count     = 2;
     cfg.fb_location  = CAMERA_FB_IN_PSRAM;

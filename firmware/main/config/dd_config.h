@@ -72,6 +72,10 @@ extern "C" {
 #define DD_MAX_CLIP_LENGTH_SEC       30
 #define DD_VIDEO_BITRATE_KBPS        1500
 
+// ── Storage Bring-up Debug ───────────────────────────────────────────────────
+// Set to 0 to disable endless SD remount retries while debugging camera bring-up.
+#define DD_SD_RETRY_ON_MOUNT_FAIL    0
+
 // ── Cloud Function ────────────────────────────────────────────────────────────
 #define DD_CLOUD_FUNCTION_URL   "https://us-central1-dingdong-596c2.cloudfunctions.net/notify"
 #define DD_HMAC_NONCE_LEN       16
