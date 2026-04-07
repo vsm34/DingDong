@@ -4,6 +4,7 @@
 
 extern "C" {
 #include "driver/gpio.h"
+#include "driver/i2c_types.h"
 #include "driver/uart.h"
 }
 
@@ -22,6 +23,7 @@ extern "C" {
 #define DD_CAM_VSYNC_GPIO    GPIO_NUM_46
 #define DD_CAM_SDA_GPIO      GPIO_NUM_14   // I2C SDA
 #define DD_CAM_SCL_GPIO      GPIO_NUM_13   // I2C SCL
+#define DD_CAM_SCCB_I2C_PORT I2C_NUM_1
 #define DD_CAM_RESETB_GPIO   GPIO_NUM_21
 #define DD_CAM_PWDN_GPIO     GPIO_NUM_47   // Verify against final Altium sheet
 

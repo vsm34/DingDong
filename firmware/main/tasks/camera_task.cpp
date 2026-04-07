@@ -243,30 +243,54 @@ static void camera_apply_reset_lines(int pin_pwdn, int pin_reset)
         gpio_config_t conf = {};
         conf.pin_bit_mask = 1ULL << (unsigned)pin_pwdn;
         conf.mode         = GPIO_MODE_OUTPUT;
-        gpio_config(&conf);
-        gpio_set_level((gpio_num_t)pin_pwdn, 1);
+        esp_err_t err = gpio_config(&conf);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "PWDN gpio_config failed: %s", esp_err_to_name(err));
+            return;
+        }
+        err = gpio_set_level((gpio_num_t)pin_pwdn, 1);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "PWDN set HIGH failed: %s", esp_err_to_name(err));
+            return;
+        }
         vTaskDelay(pdMS_TO_TICKS(10));
-        gpio_set_level((gpio_num_t)pin_pwdn, 0);
+        err = gpio_set_level((gpio_num_t)pin_pwdn, 0);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "PWDN set LOW failed: %s", esp_err_to_name(err));
+            return;
+        }
         vTaskDelay(pdMS_TO_TICKS(10));
     }
     if (pin_reset >= 0) {
         gpio_config_t conf = {};
         conf.pin_bit_mask = 1ULL << (unsigned)pin_reset;
         conf.mode         = GPIO_MODE_OUTPUT;
-        gpio_config(&conf);
-        gpio_set_level((gpio_num_t)pin_reset, 0);
+        esp_err_t err = gpio_config(&conf);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "RESET gpio_config failed: %s", esp_err_to_name(err));
+            return;
+        }
+        err = gpio_set_level((gpio_num_t)pin_reset, 0);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "RESET set LOW failed: %s", esp_err_to_name(err));
+            return;
+        }
         vTaskDelay(pdMS_TO_TICKS(10));
-        gpio_set_level((gpio_num_t)pin_reset, 1);
+        err = gpio_set_level((gpio_num_t)pin_reset, 1);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "RESET set HIGH failed: %s", esp_err_to_name(err));
+            return;
+        }
         vTaskDelay(pdMS_TO_TICKS(10));
     }
     vTaskDelay(pdMS_TO_TICKS(10));
 }
 
 /** Short I2C scan on the camera SCCB pins (same port as CONFIG_SCCB_HARDWARE_I2C_PORT1). Bus deleted before esp_camera_init. */
-static void camera_log_sccb_preflight_scan(void)
+static esp_err_t camera_log_sccb_preflight_scan(void)
 {
     i2c_master_bus_config_t bus_cfg = {};
-    bus_cfg.i2c_port          = I2C_NUM_1;
+    bus_cfg.i2c_port          = DD_CAM_SCCB_I2C_PORT;
     bus_cfg.scl_io_num        = DD_CAM_SCL_GPIO;
     bus_cfg.sda_io_num        = DD_CAM_SDA_GPIO;
     bus_cfg.clk_source        = I2C_CLK_SRC_DEFAULT;
@@ -277,7 +301,7 @@ static void camera_log_sccb_preflight_scan(void)
     esp_err_t bus_ret           = i2c_new_master_bus(&bus_cfg, &bus);
     if (bus_ret != ESP_OK) {
         ESP_LOGW(TAG, "SCCB preflight: could not create I2C bus: %s", esp_err_to_name(bus_ret));
-        return;
+        return bus_ret;
     }
 
     char line[192];
@@ -295,7 +319,8 @@ static void camera_log_sccb_preflight_scan(void)
 
     esp_err_t del_ret = i2c_del_master_bus(bus);
     if (del_ret != ESP_OK) {
-        ESP_LOGW(TAG, "SCCB preflight: i2c_del_master_bus: %s", esp_err_to_name(del_ret));
+        ESP_LOGE(TAG, "SCCB preflight: i2c_del_master_bus failed: %s", esp_err_to_name(del_ret));
+        return del_ret;
     }
 
     if (nack > 0) {
@@ -306,6 +331,7 @@ static void camera_log_sccb_preflight_scan(void)
                  "Check FPC, rails, PWDN/RST wiring vs GPIO %d / %d.",
                  (int)DD_CAM_PWDN_GPIO, (int)DD_CAM_RESETB_GPIO);
     }
+    return ESP_OK;
 }
 
 static esp_err_t init_camera(void)
@@ -345,25 +371,20 @@ static esp_err_t init_camera(void)
 
     camera_apply_reset_lines(cfg.pin_pwdn, cfg.pin_reset);
     vTaskDelay(pdMS_TO_TICKS(20));
-    camera_log_sccb_preflight_scan();
+    esp_err_t preflight_err = camera_log_sccb_preflight_scan();
+    if (preflight_err != ESP_OK) {
+        ESP_LOGE(TAG, "SCCB preflight failed before esp_camera_init: %s", esp_err_to_name(preflight_err));
+        return preflight_err;
+    }
     vTaskDelay(pdMS_TO_TICKS(50));
 
     esp_err_t err = esp_camera_init(&cfg);
-    if (err == ESP_ERR_NOT_SUPPORTED && (cfg.pin_pwdn >= 0 || cfg.pin_reset >= 0)) {
-        ESP_LOGW(TAG,
-                 "Camera probe failed with MCU PWDN/RST; retrying with pin_pwdn/pin_reset=-1 "
-                 "(use if module hardwires power-down/reset)");
-        cfg.pin_pwdn  = -1;
-        cfg.pin_reset = -1;
-        vTaskDelay(pdMS_TO_TICKS(100));
-        err = esp_camera_init(&cfg);
-    }
 
     if (err == ESP_ERR_NOT_SUPPORTED) {
         ESP_LOGE(TAG,
                  "OV5640 probe failed: no SCCB ACK or wrong chip ID. "
                  "Check camera FPC, 2.8V/1.8V rails, and schematic for PWDN(GPIO%d)/RESET(GPIO%d) "
-                 "(PRD 15.2: verify PWDN). If PWDN/RST are hardwired on the module, set those pins to -1 in code.",
+                 "(PRD 15.2: verify PWDN).",
                  (int)DD_CAM_PWDN_GPIO, (int)DD_CAM_RESETB_GPIO);
         ESP_LOGE(TAG,
                  "See SCCB preflight line above: if no ACK at 0x3c, fix hardware; "

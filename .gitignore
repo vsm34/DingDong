@@ -9,6 +9,7 @@ serviceAccount*.json
 # ─── Firebase ────────────────────────────────────────────────────────────────
 google-services.json
 GoogleService-Info.plist
+.firebase/
 
 # ─── Firestore ────────────────────────────────────────────────────────────────
 firestore.indexes.json
@@ -43,6 +44,7 @@ desktop.ini
 firmware/build/
 firmware/managed_components/
 firmware/sdkconfig
+firmware/sdkconfig.old
 firmware/.cache/
 # ─── Claude Code ─────────────────────────────────────────────────────────────
 .claude/settings.local.json
