@@ -370,7 +370,7 @@ static esp_err_t init_camera(void)
     cfg.grab_mode    = CAMERA_GRAB_WHEN_EMPTY;
 
     camera_apply_reset_lines(cfg.pin_pwdn, cfg.pin_reset);
-    vTaskDelay(pdMS_TO_TICKS(20));
+    vTaskDelay(pdMS_TO_TICKS(200));
     esp_err_t preflight_err = camera_log_sccb_preflight_scan();
     if (preflight_err != ESP_OK) {
         ESP_LOGE(TAG, "SCCB preflight failed before esp_camera_init: %s", esp_err_to_name(preflight_err));
