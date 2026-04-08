@@ -2,7 +2,7 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import 'package:image_gallery_saver/image_gallery_saver.dart';
+import 'package:image_gallery_saver_plus/image_gallery_saver_plus.dart';
 import 'package:intl/intl.dart';
 import '../../../core/theme/dd_colors.dart';
 import '../../../core/theme/dd_spacing.dart';
@@ -173,7 +173,7 @@ class _ClipPlayerScreenState extends ConsumerState<ClipPlayerScreen> {
     try {
       final bytes =
           await ref.read(deviceApiProvider).downloadClip(widget.clipId);
-      await ImageGallerySaver.saveImage(bytes,
+      await ImageGallerySaverPlus.saveImage(bytes,
           quality: 100,
           name: 'dingdong_${widget.clipId}');
       if (mounted) DDToast.success(context, 'Clip saved to gallery.');
