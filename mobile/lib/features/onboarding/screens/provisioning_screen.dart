@@ -33,9 +33,6 @@ class _ProvisioningScreenState extends ConsumerState<ProvisioningScreen> {
   void _connectDevice() {
     if (!_formKey.currentState!.validate()) return;
     ref.read(onboardingProvider.notifier).setWifiSsid(_ssidCtrl.text.trim());
-    ref
-        .read(onboardingProvider.notifier)
-        .setWifiPassword(_passwordCtrl.text);
     context.go(Routes.onboardConfirming);
   }
 

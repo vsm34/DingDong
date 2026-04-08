@@ -7,8 +7,6 @@ import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart' show TimeOfDay;
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:hive_flutter/hive_flutter.dart';
-import 'package:dio/dio.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 import '../models/clip_model.dart';
 import '../models/device_model.dart';
@@ -306,7 +304,6 @@ class OnboardingState {
   final String? error;
   final String? deviceName;
   final String? wifiSsid;
-  final String? wifiPassword;
 
   const OnboardingState({
     this.step = OnboardingStep.welcome,
@@ -314,7 +311,6 @@ class OnboardingState {
     this.error,
     this.deviceName,
     this.wifiSsid,
-    this.wifiPassword,
   });
 
   OnboardingState copyWith({
@@ -323,7 +319,6 @@ class OnboardingState {
     String? error,
     String? deviceName,
     String? wifiSsid,
-    String? wifiPassword,
   }) =>
       OnboardingState(
         step: step ?? this.step,
@@ -331,7 +326,6 @@ class OnboardingState {
         error: error,
         deviceName: deviceName ?? this.deviceName,
         wifiSsid: wifiSsid ?? this.wifiSsid,
-        wifiPassword: wifiPassword ?? this.wifiPassword,
       );
 }
 
@@ -351,76 +345,12 @@ class OnboardingNotifier extends Notifier<OnboardingState> {
     state = state.copyWith(wifiSsid: ssid);
   }
 
-  void setWifiPassword(String password) {
-    state = state.copyWith(wifiPassword: password);
-  }
-
   Future<void> simulateProvisioning() async {
-    state = state.copyWith(
-      step: OnboardingStep.provisioning,
-      isLoading: true,
-      error: null,
-    );
-
-    final ssid = state.wifiSsid?.trim() ?? '';
-    final password = state.wifiPassword ?? '';
-    final deviceName = (state.deviceName?.trim().isNotEmpty ?? false)
-        ? state.deviceName!.trim()
-        : 'Front Door';
-    if (ssid.isEmpty) {
-      throw Exception('Wi-Fi SSID is required');
-    }
-
-    final dio = Dio(
-      BaseOptions(
-        baseUrl: 'http://192.168.4.1',
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: const Duration(seconds: 10),
-        sendTimeout: const Duration(seconds: 10),
-      ),
-    );
-
-    try {
-      await dio.post<Map<String, dynamic>>(
-        '/provision',
-        data: <String, dynamic>{
-          'ssid': ssid,
-          'password': password,
-          'deviceName': deviceName,
-        },
-      );
-
-      final sw = Stopwatch()..start();
-      Map<String, dynamic>? connectedPayload;
-      while (sw.elapsed < const Duration(seconds: 60)) {
-        final resp = await dio.get<Map<String, dynamic>>('/provision/status');
-        final data = resp.data ?? const <String, dynamic>{};
-        final status = data['state'] as String? ?? 'waiting';
-        if (status == 'connected') {
-          connectedPayload = data;
-          break;
-        }
-        if (status == 'failed') {
-          throw Exception('Device failed to connect to Wi-Fi');
-        }
-        await Future<void>.delayed(const Duration(seconds: 2));
-      }
-
-      if (connectedPayload == null) {
-        throw TimeoutException('Provisioning timed out');
-      }
-
-      final token = connectedPayload['token'] as String?;
-      if (token != null && token.isNotEmpty) {
-        const storage = FlutterSecureStorage();
-        await storage.write(key: 'device_api_token', value: token);
-      }
-
-      state = state.copyWith(step: OnboardingStep.success, isLoading: false);
-    } catch (e) {
-      state = state.copyWith(isLoading: false, error: e.toString());
-      rethrow;
-    }
+    state = state.copyWith(step: OnboardingStep.provisioning, isLoading: true);
+    await Future.delayed(const Duration(seconds: 2));
+    state = state.copyWith(step: OnboardingStep.confirming, isLoading: true);
+    await Future.delayed(const Duration(seconds: 2));
+    state = state.copyWith(step: OnboardingStep.success, isLoading: false);
   }
 
   void reset() {
