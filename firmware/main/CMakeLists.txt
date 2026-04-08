@@ -22,6 +22,7 @@ idf_component_register(
         esp_http_server
         esp_http_client
         nvs_flash
+        esp_driver_i2c
         driver
         fatfs
         sdmmc

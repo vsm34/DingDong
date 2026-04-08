@@ -4,6 +4,7 @@
 
 extern "C" {
 #include "driver/gpio.h"
+#include "driver/i2c_types.h"
 #include "driver/uart.h"
 }
 
@@ -22,6 +23,7 @@ extern "C" {
 #define DD_CAM_VSYNC_GPIO    GPIO_NUM_46
 #define DD_CAM_SDA_GPIO      GPIO_NUM_14   // I2C SDA
 #define DD_CAM_SCL_GPIO      GPIO_NUM_13   // I2C SCL
+#define DD_CAM_SCCB_I2C_PORT I2C_NUM_1
 #define DD_CAM_RESETB_GPIO   GPIO_NUM_21
 #define DD_CAM_PWDN_GPIO     GPIO_NUM_47   // Verify against final Altium sheet
 
@@ -69,6 +71,10 @@ extern "C" {
 #define DD_DEFAULT_CLIP_LENGTH_SEC   10
 #define DD_MAX_CLIP_LENGTH_SEC       30
 #define DD_VIDEO_BITRATE_KBPS        1500
+
+// ── Storage Bring-up Debug ───────────────────────────────────────────────────
+// Set to 0 to disable endless SD remount retries while debugging camera bring-up.
+#define DD_SD_RETRY_ON_MOUNT_FAIL    0
 
 // ── Cloud Function ────────────────────────────────────────────────────────────
 #define DD_CLOUD_FUNCTION_URL   "https://us-central1-dingdong-596c2.cloudfunctions.net/notify"

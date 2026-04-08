@@ -1,3 +1,5 @@
+import com.android.build.gradle.LibraryExtension
+
 allprojects {
     repositories {
         google()
@@ -17,6 +19,16 @@ subprojects {
 }
 subprojects {
     project.evaluationDependsOn(":app")
+}
+
+subprojects {
+    plugins.withId("com.android.library") {
+        extensions.configure<LibraryExtension>("android") {
+            if (namespace.isNullOrEmpty()) {
+                namespace = "com.dingdong.${project.name.replace('-', '_')}"
+            }
+        }
+    }
 }
 
 tasks.register<Delete>("clean") {
