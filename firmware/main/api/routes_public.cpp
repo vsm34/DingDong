@@ -5,6 +5,7 @@ extern "C" {
 #include "esp_http_server.h"
 #include "esp_log.h"
 #include "esp_timer.h"
+#include "esp_wifi.h"
 #include "nvs.h"
 #include "nvs_flash.h"
 #include "freertos/FreeRTOS.h"
@@ -234,6 +235,86 @@ static void delayed_reboot(void *arg)
     esp_restart();
 }
 
+// ── GET /wifi/scan ────────────────────────────────────────────────────────────
+// Public endpoint (no auth). Scans visible Wi-Fi access points and returns them
+// sorted by RSSI descending. Available during SoftAP provisioning mode.
+esp_err_t handle_wifi_scan_get(httpd_req_t *req)
+{
+    set_cors_headers(req);
+
+    // Switch to APSTA so scanning works even when in SoftAP-only mode
+    wifi_mode_t current_mode = WIFI_MODE_NULL;
+    esp_wifi_get_mode(&current_mode);
+    bool switched = false;
+    if (current_mode == WIFI_MODE_AP) {
+        esp_wifi_set_mode(WIFI_MODE_APSTA);
+        switched = true;
+    }
+
+    wifi_scan_config_t scan_cfg = {};
+    scan_cfg.show_hidden          = false;
+    scan_cfg.scan_type            = WIFI_SCAN_TYPE_ACTIVE;
+    scan_cfg.scan_time.active.min = 100;
+    scan_cfg.scan_time.active.max = 400;
+
+    uint16_t ap_count = 0;
+    wifi_ap_record_t ap_records[20] = {};
+
+    esp_err_t scan_err = esp_wifi_scan_start(&scan_cfg, true); // blocking
+    if (scan_err == ESP_OK) {
+        esp_wifi_scan_get_ap_num(&ap_count);
+        if (ap_count > 20) ap_count = 20;
+        uint16_t max = ap_count;
+        esp_wifi_scan_get_ap_records(&max, ap_records);
+        ap_count = max;
+    } else {
+        ESP_LOGW(TAG, "Wi-Fi scan failed: %s", esp_err_to_name(scan_err));
+    }
+
+    // Restore original mode if we switched
+    if (switched) {
+        esp_wifi_set_mode(WIFI_MODE_AP);
+    }
+
+    // Sort by RSSI descending (bubble sort, at most 20 entries)
+    for (uint16_t i = 0; i + 1 < ap_count; i++) {
+        for (uint16_t j = 0; j + 1 < ap_count - i; j++) {
+            if (ap_records[j].rssi < ap_records[j + 1].rssi) {
+                wifi_ap_record_t tmp = ap_records[j];
+                ap_records[j]        = ap_records[j + 1];
+                ap_records[j + 1]    = tmp;
+            }
+        }
+    }
+
+    cJSON *root     = cJSON_CreateObject();
+    cJSON *networks = cJSON_CreateArray();
+
+    for (uint16_t i = 0; i < ap_count; i++) {
+        const char *ssid = (const char *)ap_records[i].ssid;
+        if (strlen(ssid) == 0) continue; // skip hidden SSIDs
+        cJSON *net = cJSON_CreateObject();
+        cJSON_AddStringToObject(net, "ssid",    ssid);
+        cJSON_AddNumberToObject(net, "rssi",    ap_records[i].rssi);
+        cJSON_AddBoolToObject(  net, "secured",
+            ap_records[i].authmode != WIFI_AUTH_OPEN);
+        cJSON_AddItemToArray(networks, net);
+    }
+    cJSON_AddItemToObject(root, "networks", networks);
+
+    char *json_str = cJSON_PrintUnformatted(root);
+    cJSON_Delete(root);
+
+    if (json_str) {
+        send_json_ok(req, json_str);
+        free(json_str);
+    } else {
+        send_json_error(req, 500, "json alloc failed");
+    }
+    return ESP_OK;
+}
+
+// ── DELETE /provision ─────────────────────────────────────────────────────────
 esp_err_t handle_provision_delete(httpd_req_t *req)
 {
     set_cors_headers(req);

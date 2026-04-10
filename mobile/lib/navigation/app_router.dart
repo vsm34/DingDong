@@ -9,6 +9,7 @@ import '../features/auth/screens/account_settings_screen.dart';
 import '../features/onboarding/screens/welcome_screen.dart';
 import '../features/onboarding/screens/connect_ap_screen.dart';
 import '../features/onboarding/screens/provisioning_screen.dart';
+import '../features/onboarding/screens/ble_provisioning_screen.dart';
 import '../features/onboarding/screens/confirming_screen.dart';
 import '../features/onboarding/screens/success_screen.dart';
 import '../features/home/screens/home_screen.dart';
@@ -36,6 +37,7 @@ abstract final class Routes {
   static const onboardWelcome = '/onboard/welcome';
   static const onboardConnectAp = '/onboard/connect-ap';
   static const onboardProvisioning = '/onboard/provisioning';
+  static const onboardBleProvision = '/onboard/ble-provision';
   static const onboardConfirming = '/onboard/confirming';
   static const onboardSuccess = '/onboard/success';
   static const homeEvents = '/home/events';
@@ -84,6 +86,10 @@ List<RouteBase> get _routes => [
       GoRoute(
         path: Routes.onboardProvisioning,
         builder: (_, __) => const ProvisioningScreen(),
+      ),
+      GoRoute(
+        path: Routes.onboardBleProvision,
+        builder: (_, __) => const BleProvisioningScreen(),
       ),
       GoRoute(
         path: Routes.onboardConfirming,

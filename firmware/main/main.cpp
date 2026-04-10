@@ -46,11 +46,12 @@ extern "C" void app_main(void)
     load_settings_from_nvs();
 
     // 4. Launch all 5 tasks with pinned cores, exact priorities and stack sizes
-    xTaskCreatePinnedToCore(sensor_task,  "sensor",  4096, nullptr, 5, nullptr, 0);
-    xTaskCreatePinnedToCore(camera_task,  "camera",  8192, nullptr, 4, nullptr, 1);
-    xTaskCreatePinnedToCore(storage_task, "storage", 4096, nullptr, 3, nullptr, 0);
-    xTaskCreatePinnedToCore(wifi_task,    "wifi",    8192, nullptr, 6, nullptr, 0);
-    xTaskCreatePinnedToCore(stream_task,  "stream",  4096, nullptr, 2, nullptr, 1);
+    xTaskCreatePinnedToCore(sensor_task,   "sensor",   4096, nullptr, 5, nullptr, 0);
+    xTaskCreatePinnedToCore(camera_task,   "camera",   8192, nullptr, 4, nullptr, 1);
+    xTaskCreatePinnedToCore(storage_task,  "storage",  4096, nullptr, 3, nullptr, 0);
+    xTaskCreatePinnedToCore(wifi_task,     "wifi",     8192, nullptr, 6, nullptr, 0);
+    xTaskCreatePinnedToCore(stream_task,   "stream",   4096, nullptr, 2, nullptr, 1);
+    xTaskCreatePinnedToCore(ble_prov_task, "ble_prov", 8192, nullptr, 4, nullptr, 0);
 
     ESP_LOGI(TAG, "DingDong booting...");
 }

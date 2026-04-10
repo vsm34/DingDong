@@ -18,6 +18,7 @@ esp_err_t handle_provision_post(httpd_req_t *req);
 esp_err_t handle_provision_status_get(httpd_req_t *req);
 esp_err_t handle_provision_secret_post(httpd_req_t *req);
 esp_err_t handle_provision_delete(httpd_req_t *req);
+esp_err_t handle_wifi_scan_get(httpd_req_t *req);
 // Protected routes
 esp_err_t handle_health_get(httpd_req_t *req);
 esp_err_t handle_events_get(httpd_req_t *req);
@@ -94,6 +95,13 @@ static void register_provisioning_routes(httpd_handle_t server)
     static const httpd_uri_t del_provision = {
         "/provision", HTTP_DELETE, handle_provision_delete, nullptr
     };
+    // GET /wifi/scan (public — available during SoftAP provisioning)
+    static const httpd_uri_t opts_wifi_scan = {
+        "/wifi/scan", HTTP_OPTIONS, handle_options, nullptr
+    };
+    static const httpd_uri_t get_wifi_scan = {
+        "/wifi/scan", HTTP_GET, handle_wifi_scan_get, nullptr
+    };
 
     httpd_register_uri_handler(server, &opts_provision);
     httpd_register_uri_handler(server, &opts_provision_status);
@@ -102,6 +110,8 @@ static void register_provisioning_routes(httpd_handle_t server)
     httpd_register_uri_handler(server, &get_provision_status);
     httpd_register_uri_handler(server, &post_provision_secret);
     httpd_register_uri_handler(server, &del_provision);
+    httpd_register_uri_handler(server, &opts_wifi_scan);
+    httpd_register_uri_handler(server, &get_wifi_scan);
 }
 
 // ── Register all routes (provisioning + protected) ────────────────────────────

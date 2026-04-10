@@ -6,6 +6,7 @@ idf_component_register(
         "tasks/storage_task.cpp"
         "tasks/wifi_task.cpp"
         "tasks/stream_task.cpp"
+        "tasks/ble_prov_task.cpp"
         "api/http_server.cpp"
         "api/auth_middleware.cpp"
         "api/routes_public.cpp"
@@ -35,4 +36,7 @@ idf_component_register(
         lwip
         esp_hw_support
         spi_flash
+        bt
+        nimble
+        esp_nimble_hci
 )

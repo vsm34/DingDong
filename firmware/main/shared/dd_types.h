@@ -92,6 +92,7 @@ void camera_task(void *pvParam);
 void storage_task(void *pvParam);
 void wifi_task(void *pvParam);
 void stream_task(void *pvParam);
+void ble_prov_task(void *pvParam);
 }
 
 // ── Settings Loader (defined in notify_client.cpp) ───────────────────────────

@@ -117,7 +117,7 @@ class _ConfirmingScreenState extends ConsumerState<ConfirmingScreen> {
         leading: IconButton(
           icon: const Icon(Icons.arrow_back_ios_new,
               size: 20, color: Color(0xFF355E3B)),
-          onPressed: () => context.go(Routes.onboardProvisioning),
+          onPressed: () => context.go(Routes.onboardBleProvision),
         ),
         actions: [
           Padding(

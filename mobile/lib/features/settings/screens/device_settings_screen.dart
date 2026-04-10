@@ -12,6 +12,7 @@ import '../../../components/dd_bottom_sheet.dart';
 import '../../../components/dd_button.dart';
 import '../../../components/dd_card.dart';
 import '../../../components/dd_chip.dart';
+import '../../../components/dd_list_tile.dart';
 import '../../../components/dd_loading_indicator.dart';
 import '../../../components/dd_text_field.dart';
 import '../../../components/dd_toast.dart';
@@ -558,6 +559,35 @@ class _SettingsBodyState extends ConsumerState<_SettingsBody> {
             trailing: const Icon(Icons.group_outlined,
                 size: 18, color: DDColors.textMuted),
             onTap: () => context.push(Routes.members),
+          ),
+        ),
+        const SizedBox(height: DDSpacing.lg),
+        // DEVICE
+        const _SectionLabel('DEVICE'),
+        DDCard(
+          child: DDListTile(
+            showDivider: false,
+            leading: Container(
+              width: 40,
+              height: 40,
+              decoration: BoxDecoration(
+                color: DDColors.hunterGreen.withValues(alpha: 0.12),
+                borderRadius: BorderRadius.circular(DDSpacing.radiusSm),
+              ),
+              child: const Icon(
+                Icons.wifi,
+                size: 20,
+                color: DDColors.hunterGreen,
+              ),
+            ),
+            title: 'Change Wi-Fi Network',
+            subtitle: 'Re-provision device to a new network',
+            trailing: const Icon(
+              Icons.chevron_right,
+              size: 18,
+              color: DDColors.textMuted,
+            ),
+            onTap: () => context.go(Routes.onboardBleProvision),
           ),
         ),
         const SizedBox(height: DDSpacing.xl),
