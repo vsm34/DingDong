@@ -37,6 +37,4 @@ idf_component_register(
         esp_hw_support
         spi_flash
         bt
-        nimble
-        esp_nimble_hci
 )

@@ -118,19 +118,20 @@ static int wifi_creds_write_cb(uint16_t conn_handle, uint16_t attr_handle,
 }
 
 // ── GATT service definition ───────────────────────────────────────────────────
+static uint16_t s_chr_val_handle;
+
 static const struct ble_gatt_chr_def s_chr_defs[] = {
     {
-        .uuid       = &s_chr_uuid.u,
-        .access_cb  = wifi_creds_write_cb,
-        .flags      = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP,
-        .val_handle = nullptr,
+        .uuid         = &s_chr_uuid.u,
+        .access_cb    = wifi_creds_write_cb,
+        .arg          = nullptr,
+        .descriptors  = nullptr,
+        .flags        = BLE_GATT_CHR_F_WRITE | BLE_GATT_CHR_F_WRITE_NO_RSP,
         .min_key_size = 0,
-        .descriptors = nullptr,
-        .arg        = nullptr,
+        .val_handle   = &s_chr_val_handle,
     },
-    { 0 }, // terminator
+    { 0 },
 };
-
 static const struct ble_gatt_svc_def s_gatt_svcs[] = {
     {
         .type            = BLE_GATT_SVC_TYPE_PRIMARY,
@@ -138,7 +139,7 @@ static const struct ble_gatt_svc_def s_gatt_svcs[] = {
         .includes        = nullptr,
         .characteristics = s_chr_defs,
     },
-    { 0 }, // terminator
+    { 0 },
 };
 
 // ── Advertising ───────────────────────────────────────────────────────────────
