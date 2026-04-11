@@ -138,21 +138,12 @@ static int ble_gap_event_cb(struct ble_gap_event *event, void *arg)
     (void)arg;
     switch (event->type) {
     case BLE_GAP_EVENT_CONNECT:
-        ESP_LOGI(TAG, "BLE client connected, conn_handle=%d status=%d",
-                 event->connect.conn_handle, event->connect.status);
-        if (event->connect.status == 0) {
-            struct ble_gap_upd_params params = {};
-            params.itvl_min            = 6;
-            params.itvl_max            = 12;
-            params.latency             = 0;
-            params.supervision_timeout = 500;
-            params.min_ce_len          = 0;
-            params.max_ce_len          = 0;
-            ble_gap_update_params(event->connect.conn_handle, &params);
-        } else {
-            ble_app_advertise();
-        }
-        break;
+    ESP_LOGI(TAG, "BLE client connected, conn_handle=%d status=%d",
+             event->connect.conn_handle, event->connect.status);
+    if (event->connect.status != 0) {
+        ble_app_advertise();
+    }
+    break;
     case BLE_GAP_EVENT_DISCONNECT:
         ESP_LOGI(TAG, "BLE client disconnected, reason=%d",
                  event->disconnect.reason);
