@@ -29,7 +29,6 @@ extern "C" void wifi_trigger_provision_connect(void);
 
 // ── UUIDs (128-bit, little-endian byte order for NimBLE) ─────────────────────
 // Service UUID:  12345678-1234-1234-1234-123456789abc
-// Bytes BE:      12 34 56 78 12 34 12 34 12 34 12 34 56 78 9a bc
 // Bytes LE:      bc 9a 78 56 34 12 34 12 34 12 34 12 78 56 34 12
 static const ble_uuid128_t s_svc_uuid = BLE_UUID128_INIT(
     0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12, 0x34, 0x12,
@@ -132,6 +131,7 @@ static const struct ble_gatt_chr_def s_chr_defs[] = {
     },
     { 0 },
 };
+
 static const struct ble_gatt_svc_def s_gatt_svcs[] = {
     {
         .type            = BLE_GATT_SVC_TYPE_PRIMARY,
@@ -141,6 +141,36 @@ static const struct ble_gatt_svc_def s_gatt_svcs[] = {
     },
     { 0 },
 };
+
+// ── Forward declaration for advertise (needed by GAP event handler) ───────────
+static void ble_app_advertise(void);
+
+// ── GAP event handler ─────────────────────────────────────────────────────────
+static int ble_gap_event_cb(struct ble_gap_event *event, void *arg)
+{
+    (void)arg;
+    switch (event->type) {
+    case BLE_GAP_EVENT_CONNECT:
+        ESP_LOGI(TAG, "BLE client connected, conn_handle=%d status=%d",
+                 event->connect.conn_handle, event->connect.status);
+        if (event->connect.status != 0) {
+            // Connection failed — restart advertising
+            ble_app_advertise();
+        }
+        break;
+    case BLE_GAP_EVENT_DISCONNECT:
+        ESP_LOGI(TAG, "BLE client disconnected, reason=%d",
+                 event->disconnect.reason);
+        // Restart advertising after disconnect if not yet provisioned
+        if (!(xEventGroupGetBits(system_eg) & BIT_PROVISIONED)) {
+            ble_app_advertise();
+        }
+        break;
+    default:
+        break;
+    }
+    return 0;
+}
 
 // ── Advertising ───────────────────────────────────────────────────────────────
 static void ble_app_advertise(void)
@@ -162,7 +192,7 @@ static void ble_app_advertise(void)
     adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
 
     rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, nullptr,
-                           BLE_HS_FOREVER, &adv_params, nullptr, nullptr);
+                           BLE_HS_FOREVER, &adv_params, ble_gap_event_cb, nullptr);
     if (rc != 0) {
         ESP_LOGE(TAG, "ble_gap_adv_start failed: %d", rc);
     } else {
