@@ -24,25 +24,18 @@ extern "C" {
 
 static const char *TAG = "ble_prov";
 
-// Forward declaration (defined in wifi_task.cpp)
 extern "C" void wifi_trigger_provision_connect(void);
 
-// ── UUIDs (128-bit, little-endian byte order for NimBLE) ─────────────────────
-// Service UUID:  12345678-1234-1234-1234-123456789abc
-// Bytes LE:      bc 9a 78 56 34 12 34 12 34 12 34 12 78 56 34 12
 static const ble_uuid128_t s_svc_uuid = BLE_UUID128_INIT(
     0xbc, 0x9a, 0x78, 0x56, 0x34, 0x12, 0x34, 0x12,
     0x34, 0x12, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12
 );
 
-// Characteristic UUID: 12345678-1234-1234-1234-123456789abd
-// Bytes LE:  bd 9a 78 56 34 12 34 12 34 12 34 12 78 56 34 12
 static const ble_uuid128_t s_chr_uuid = BLE_UUID128_INIT(
     0xbd, 0x9a, 0x78, 0x56, 0x34, 0x12, 0x34, 0x12,
     0x34, 0x12, 0x34, 0x12, 0x78, 0x56, 0x34, 0x12
 );
 
-// ── GATT characteristic write callback ────────────────────────────────────────
 static int wifi_creds_write_cb(uint16_t conn_handle, uint16_t attr_handle,
                                 struct ble_gatt_access_ctxt *ctxt, void *arg)
 {
@@ -96,7 +89,6 @@ static int wifi_creds_write_cb(uint16_t conn_handle, uint16_t attr_handle,
         return BLE_ATT_ERR_INVALID_ATTR_VALUE_LEN;
     }
 
-    // Store credentials in NVS (same namespace as POST /provision)
     nvs_handle_t h;
     if (nvs_open("dingdong", NVS_READWRITE, &h) == ESP_OK) {
         nvs_set_str(h, "wifi_ssid", ssid);
@@ -110,13 +102,10 @@ static int wifi_creds_write_cb(uint16_t conn_handle, uint16_t attr_handle,
     }
 
     cJSON_Delete(root);
-
-    // Trigger Wi-Fi connect in wifi_task
     wifi_trigger_provision_connect();
     return 0;
 }
 
-// ── GATT service definition ───────────────────────────────────────────────────
 static uint16_t s_chr_val_handle;
 
 static const struct ble_gatt_chr_def s_chr_defs[] = {
@@ -142,36 +131,33 @@ static const struct ble_gatt_svc_def s_gatt_svcs[] = {
     { 0 },
 };
 
-// ── Forward declaration for advertise (needed by GAP event handler) ───────────
 static void ble_app_advertise(void);
 
-// ── GAP event handler ─────────────────────────────────────────────────────────
 static int ble_gap_event_cb(struct ble_gap_event *event, void *arg)
 {
     (void)arg;
     switch (event->type) {
     case BLE_GAP_EVENT_CONNECT:
-    ESP_LOGI(TAG, "BLE client connected, conn_handle=%d status=%d",
-             event->connect.conn_handle, event->connect.status);
-    if (event->connect.status == 0) {
-        // Update connection parameters to extend supervision timeout
-        struct ble_gap_upd_params params = {};
-        params.itvl_min            = 6;    // 7.5ms
-        params.itvl_max            = 12;   // 15ms
-        params.latency             = 0;
-        params.supervision_timeout = 500;  // 5 seconds
-        params.min_ce_len          = 0;
-        params.max_ce_len          = 0;
-        ble_gap_update_params(event->connect.conn_handle, &params);
-    } else {
-        ble_app_advertise();
-    }
-    break;
+        ESP_LOGI(TAG, "BLE client connected, conn_handle=%d status=%d",
+                 event->connect.conn_handle, event->connect.status);
+        if (event->connect.status == 0) {
+            struct ble_gap_upd_params params = {};
+            params.itvl_min            = 6;
+            params.itvl_max            = 12;
+            params.latency             = 0;
+            params.supervision_timeout = 500;
+            params.min_ce_len          = 0;
+            params.max_ce_len          = 0;
+            ble_gap_update_params(event->connect.conn_handle, &params);
+        } else {
+            ble_app_advertise();
+        }
+        break;
     case BLE_GAP_EVENT_DISCONNECT:
         ESP_LOGI(TAG, "BLE client disconnected, reason=%d",
                  event->disconnect.reason);
-        // Restart advertising after disconnect if not yet provisioned
         if (!(xEventGroupGetBits(system_eg) & BIT_PROVISIONED)) {
+            vTaskDelay(pdMS_TO_TICKS(500));
             ble_app_advertise();
         }
         break;
@@ -181,9 +167,10 @@ static int ble_gap_event_cb(struct ble_gap_event *event, void *arg)
     return 0;
 }
 
-// ── Advertising ───────────────────────────────────────────────────────────────
 static void ble_app_advertise(void)
 {
+    ble_gap_adv_stop();
+
     struct ble_hs_adv_fields fields = {};
     fields.flags            = BLE_HS_ADV_F_DISC_GEN | BLE_HS_ADV_F_BREDR_UNSUP;
     fields.name             = (const uint8_t *)"DingDong-Setup";
@@ -197,8 +184,10 @@ static void ble_app_advertise(void)
     }
 
     struct ble_gap_adv_params adv_params = {};
-    adv_params.conn_mode = BLE_GAP_CONN_MODE_UND;
-    adv_params.disc_mode = BLE_GAP_DISC_MODE_GEN;
+    adv_params.conn_mode  = BLE_GAP_CONN_MODE_UND;
+    adv_params.disc_mode  = BLE_GAP_DISC_MODE_GEN;
+    adv_params.itvl_min   = 160;
+    adv_params.itvl_max   = 160;
 
     rc = ble_gap_adv_start(BLE_OWN_ADDR_PUBLIC, nullptr,
                            BLE_HS_FOREVER, &adv_params, ble_gap_event_cb, nullptr);
@@ -209,27 +198,23 @@ static void ble_app_advertise(void)
     }
 }
 
-// Called by NimBLE host when stack is synchronised and ready
 static void ble_app_on_sync(void)
 {
     ble_app_advertise();
 }
 
-// NimBLE host task — runs the NimBLE event loop
 static void ble_host_task(void *param)
 {
     (void)param;
     ESP_LOGI(TAG, "BLE host task started");
-    nimble_port_run(); // blocks until nimble_port_stop() called
+    nimble_port_run();
     nimble_port_freertos_deinit();
 }
 
-// ── ble_prov_task — supervisor ────────────────────────────────────────────────
 extern "C" void ble_prov_task(void *pvParam)
 {
     (void)pvParam;
 
-    // Only run when device is not yet provisioned
     if (xEventGroupGetBits(system_eg) & BIT_PROVISIONED) {
         ESP_LOGI(TAG, "Already provisioned — BLE prov task exiting");
         vTaskDelete(nullptr);
@@ -239,9 +224,7 @@ extern "C" void ble_prov_task(void *pvParam)
     ESP_LOGI(TAG, "Starting BLE provisioning task");
 
     nimble_port_init();
-
     ble_hs_cfg.sync_cb = ble_app_on_sync;
-
     ble_svc_gap_init();
     ble_svc_gatt_init();
 
@@ -261,7 +244,6 @@ extern "C" void ble_prov_task(void *pvParam)
 
     nimble_port_freertos_init(ble_host_task);
 
-    // Wait until provisioned (wifi_task sets BIT_PROVISIONED on successful connect)
     while (!(xEventGroupGetBits(system_eg) & BIT_PROVISIONED)) {
         vTaskDelay(pdMS_TO_TICKS(1000));
     }
@@ -269,6 +251,5 @@ extern "C" void ble_prov_task(void *pvParam)
     ESP_LOGI(TAG, "Device provisioned — stopping BLE advertising");
     ble_gap_adv_stop();
     nimble_port_stop();
-
     vTaskDelete(nullptr);
 }
