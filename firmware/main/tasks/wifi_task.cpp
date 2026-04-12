@@ -221,6 +221,7 @@ void wifi_task(void *pvParam)
         esp_wifi_stop();
         nvs_read_str("wifi_ssid", ssid, sizeof(ssid));
         nvs_read_str("wifi_pass", pass, sizeof(pass));
+        esp_wifi_start();
     } else {
         nvs_read_str("wifi_pass", pass, sizeof(pass));
         ESP_LOGI(TAG, "Credentials found, connecting to '%s'", ssid);
