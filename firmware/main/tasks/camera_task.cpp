@@ -6,6 +6,8 @@ extern "C" {
 #include "freertos/queue.h"
 #include "freertos/task.h"
 #include "freertos/event_groups.h"
+#include "driver/gpio.h"
+#include "driver/i2c_master.h"
 #include "esp_log.h"
 #include "esp_timer.h"
 #include "esp_camera.h"
@@ -234,8 +236,112 @@ static size_t build_avi(
 }
 
 // ── Camera init ───────────────────────────────────────────────────────────────
+/** Matches esp32-camera `camera_probe()` reset/PWDN sequencing so a preflight scan sees an awake sensor. */
+static void camera_apply_reset_lines(int pin_pwdn, int pin_reset)
+{
+    if (pin_pwdn >= 0) {
+        gpio_config_t conf = {};
+        conf.pin_bit_mask = 1ULL << (unsigned)pin_pwdn;
+        conf.mode         = GPIO_MODE_OUTPUT;
+        esp_err_t err = gpio_config(&conf);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "PWDN gpio_config failed: %s", esp_err_to_name(err));
+            return;
+        }
+        err = gpio_set_level((gpio_num_t)pin_pwdn, 1);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "PWDN set HIGH failed: %s", esp_err_to_name(err));
+            return;
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
+        err = gpio_set_level((gpio_num_t)pin_pwdn, 0);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "PWDN set LOW failed: %s", esp_err_to_name(err));
+            return;
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+    if (pin_reset >= 0) {
+        gpio_config_t conf = {};
+        conf.pin_bit_mask = 1ULL << (unsigned)pin_reset;
+        conf.mode         = GPIO_MODE_OUTPUT;
+        esp_err_t err = gpio_config(&conf);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "RESET gpio_config failed: %s", esp_err_to_name(err));
+            return;
+        }
+        err = gpio_set_level((gpio_num_t)pin_reset, 0);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "RESET set LOW failed: %s", esp_err_to_name(err));
+            return;
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
+        err = gpio_set_level((gpio_num_t)pin_reset, 1);
+        if (err != ESP_OK) {
+            ESP_LOGW(TAG, "RESET set HIGH failed: %s", esp_err_to_name(err));
+            return;
+        }
+        vTaskDelay(pdMS_TO_TICKS(10));
+    }
+    vTaskDelay(pdMS_TO_TICKS(10));
+}
+
+/** Short I2C scan on the camera SCCB pins (same port as CONFIG_SCCB_HARDWARE_I2C_PORT1). Bus deleted before esp_camera_init. */
+static esp_err_t camera_log_sccb_preflight_scan(void)
+{
+    i2c_master_bus_config_t bus_cfg = {};
+    bus_cfg.i2c_port          = DD_CAM_SCCB_I2C_PORT;
+    bus_cfg.scl_io_num        = DD_CAM_SCL_GPIO;
+    bus_cfg.sda_io_num        = DD_CAM_SDA_GPIO;
+    bus_cfg.clk_source        = I2C_CLK_SRC_DEFAULT;
+    bus_cfg.glitch_ignore_cnt = 7;
+    bus_cfg.flags.enable_internal_pullup = 1;
+
+    i2c_master_bus_handle_t bus = nullptr;
+    esp_err_t bus_ret           = i2c_new_master_bus(&bus_cfg, &bus);
+    if (bus_ret != ESP_OK) {
+        ESP_LOGW(TAG, "SCCB preflight: could not create I2C bus: %s", esp_err_to_name(bus_ret));
+        return bus_ret;
+    }
+
+    char line[192];
+    size_t pos  = 0;
+    int    nack = 0;
+    for (int addr = 0x08; addr < 0x78; addr++) {
+        if (i2c_master_probe(bus, addr, pdMS_TO_TICKS(50)) == ESP_OK) {
+            pos += (size_t)snprintf(line + pos, sizeof(line) - pos, "%s0x%02x", nack ? " " : "", addr);
+            nack++;
+            if (pos >= sizeof(line) - 12) {
+                break;
+            }
+        }
+    }
+
+    esp_err_t del_ret = i2c_del_master_bus(bus);
+    if (del_ret != ESP_OK) {
+        ESP_LOGE(TAG, "SCCB preflight: i2c_del_master_bus failed: %s", esp_err_to_name(del_ret));
+        return del_ret;
+    }
+
+    if (nack > 0) {
+        ESP_LOGI(TAG, "SCCB preflight scan (7-bit ACK): %s (expect 0x3c for OV5640)", line);
+    } else {
+        ESP_LOGW(TAG,
+                 "SCCB preflight: no devices ACK — I2C dead or sensor held off (OV5640=0x3c). "
+                 "Check FPC, rails, PWDN/RST wiring vs GPIO %d / %d.",
+                 (int)DD_CAM_PWDN_GPIO, (int)DD_CAM_RESETB_GPIO);
+    }
+    return ESP_OK;
+}
+
 static esp_err_t init_camera(void)
 {
+    ESP_LOGI(TAG,
+             "Camera pins: SDA=%d SCL=%d RST=%d PWDN=%d VSYNC=%d HREF=%d PCLK=%d XCLK=%d",
+             (int)DD_CAM_SDA_GPIO, (int)DD_CAM_SCL_GPIO, (int)DD_CAM_RESETB_GPIO,
+             (int)DD_CAM_PWDN_GPIO, (int)DD_CAM_VSYNC_GPIO, (int)DD_CAM_HREF_GPIO,
+             (int)DD_CAM_PCLK_GPIO, (int)DD_CAM_XCLK_GPIO);
+
     camera_config_t cfg = {};
     cfg.pin_pwdn     = DD_CAM_PWDN_GPIO;
     cfg.pin_reset    = DD_CAM_RESETB_GPIO;
@@ -257,12 +363,34 @@ static esp_err_t init_camera(void)
     cfg.ledc_timer   = LEDC_TIMER_0;
     cfg.ledc_channel = LEDC_CHANNEL_0;
     cfg.pixel_format = PIXFORMAT_JPEG;
-    cfg.frame_size   = FRAMESIZE_HD;
+    cfg.frame_size   = FRAMESIZE_VGA;
     cfg.jpeg_quality = 12;
     cfg.fb_count     = 2;
     cfg.fb_location  = CAMERA_FB_IN_PSRAM;
     cfg.grab_mode    = CAMERA_GRAB_WHEN_EMPTY;
-    return esp_camera_init(&cfg);
+
+    camera_apply_reset_lines(cfg.pin_pwdn, cfg.pin_reset);
+    vTaskDelay(pdMS_TO_TICKS(200));
+    esp_err_t preflight_err = camera_log_sccb_preflight_scan();
+    if (preflight_err != ESP_OK) {
+        ESP_LOGE(TAG, "SCCB preflight failed before esp_camera_init: %s", esp_err_to_name(preflight_err));
+        return preflight_err;
+    }
+    vTaskDelay(pdMS_TO_TICKS(50));
+
+    esp_err_t err = esp_camera_init(&cfg);
+
+    if (err == ESP_ERR_NOT_SUPPORTED) {
+        ESP_LOGE(TAG,
+                 "OV5640 probe failed: no SCCB ACK or wrong chip ID. "
+                 "Check camera FPC, 2.8V/1.8V rails, and schematic for PWDN(GPIO%d)/RESET(GPIO%d) "
+                 "(PRD 15.2: verify PWDN).",
+                 (int)DD_CAM_PWDN_GPIO, (int)DD_CAM_RESETB_GPIO);
+        ESP_LOGE(TAG,
+                 "See SCCB preflight line above: if no ACK at 0x3c, fix hardware; "
+                 "if ACK at 0x3c but still fail, enable more drivers in menuconfig or verify sensor is OV5640.");
+    }
+    return err;
 }
 
 // ── camera_task ───────────────────────────────────────────────────────────────

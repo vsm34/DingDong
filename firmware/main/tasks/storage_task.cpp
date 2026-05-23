@@ -141,10 +141,15 @@ void storage_task(void *pvParam)
 {
     ESP_LOGI(TAG, "Storage task started");
 
-    // Try to mount SD card; retry every 5s on failure
+    // Try to mount SD card. For camera bring-up, retries can be disabled.
     while (mount_sd() != ESP_OK) {
+#if DD_SD_RETRY_ON_MOUNT_FAIL
         ESP_LOGW(TAG, "SD mount failed, retrying in 5s");
         vTaskDelay(pdMS_TO_TICKS(5000));
+#else
+        ESP_LOGW(TAG, "SD mount failed, retries disabled by DD_SD_RETRY_ON_MOUNT_FAIL");
+        break;
+#endif
     }
     xEventGroupSetBits(system_eg, BIT_SD_MOUNTED);
 
